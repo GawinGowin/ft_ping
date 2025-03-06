@@ -1,31 +1,54 @@
 #include "ft_ping.h"
 
 static void dns_lookup(const char *hostname, struct sockaddr_in *addr);
+static int is_ipv6_address(const char *addr);
+static int create_socket_with_fallback(void);
 
 int init(t_ping_state *state, char **argv) {
-  state->sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (state->sockfd < 0)
-    error(1, "socket failed\n");
-  int sndbuf = 64 * 1024; // 64KB send buffer size
-  if (setsockopt(state->sockfd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
-    error(1, "setsockopt failed\n");
-  }
   char *target = *argv;
-  // アドレスの名前解決
-  dns_lookup(target, &state->whereto);
-  (void)target;
-  // bzero((void *)&state->whereto, sizeof(state->whereto));
-  // state->whereto.sin_family = AF_INET;
-  // if (inet_aton(target, &state->whereto.sin_addr) == 1) { // 数値形式のアドレス
-  //   struct in_addr ipv6;
-  //   if (inet_pton(AF_INET6, target, &ipv6) == 1) { // IPv6 is not supported
-  //     error(2, "IPv6 is not supported\n");
-  //   }
-  //   state->hostname = target;
+  state->hostname = target;
 
-  // } else { // 名前解決が必要なアドレス
-  // }
+  if (is_ipv6_address(target)) {
+    error(2, "IPv6 is not supported\n");
+  }
+
+  // ソケット作成
+  state->sockfd = create_socket_with_fallback();
+  if (state->sockfd < 0) {
+    error(1, "Failed to create socket: %s\n", strerror(errno));
+  }
+
+  int sndbuf = 64 * 1024;
+  if (setsockopt(state->sockfd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0) {
+    error(1, "setsockopt failed: %s\n", strerror(errno));
+  }
+
+  dns_lookup(target, &state->whereto);
   return (0);
+}
+
+static int is_ipv6_address(const char *addr) {
+  struct in6_addr ipv6_addr;
+  return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
+}
+
+static int create_socket_with_fallback(void) {
+  int sockfd;
+
+  // SOCK_RAW を作るにはroot権限が必要なことがある
+  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+  if (sockfd >= 0) {
+    return sockfd;
+  }
+
+  // SOCK_DGRAM で作る
+  if (errno == EPERM || errno == EACCES) {
+    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (sockfd >= 0) {
+      return sockfd;
+    }
+  }
+  return -1;
 }
 
 static void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
@@ -41,8 +64,13 @@ static void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   struct addrinfo *result;
   int ret = getaddrinfo(hostname, NULL, &hints, &result);
   if (ret != 0) {
-    error(1, "getaddrinfo failed\n");
+    error(1, "getaddrinfo failed: %s\n", gai_strerror(ret));
   }
+
+  if (!result) {
+    error(1, "No address found for hostname: %s\n", hostname);
+  }
+
   struct sockaddr_in *addr_in = (struct sockaddr_in *)result->ai_addr;
   memcpy(addr, addr_in, sizeof(struct sockaddr_in));
   freeaddrinfo(result);

@@ -20,6 +20,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/ip_icmp.h>
 #include <sys/socket.h>
 
 #ifndef SOL_SOCKET
