@@ -8,10 +8,10 @@ int entrypoint(int argc, char **argv) {
   t_ping_state state;
   configure_state(&state);
 
-  if (on_exit(cleanup, (void *)&state) != 0) {
-    error(1, "on_exit failed\n");
-    return (1);
-  }
+  // if (on_exit(cleanup, (void *)&state) != 0) {
+  //   error(1, "on_exit failed\n");
+  //   return (1);
+  // }
   if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR) {
     error(1, "signal failed\n");
   }

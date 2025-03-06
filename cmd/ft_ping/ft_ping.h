@@ -1,7 +1,9 @@
 #ifndef FT_PING_H
 #define FT_PING_H
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <errno.h>
 #include <fcntl.h>
@@ -19,6 +21,10 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+#ifndef SOL_SOCKET
+#define SOL_SOCKET IPPROTO_IP
+#endif
 
 typedef struct ping_state {
   int sockfd;
