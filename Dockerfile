@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/cpp:1.2.7-debian12
+FROM mcr.microsoft.com/devcontainers/cpp:1.2.7-debian12 AS dev
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -21,3 +21,17 @@ RUN set -x; \
 	cmake ..; \
 	make; \
 	make install
+
+FROM debian:12.9-slim AS ci
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY  --from=dev /usr/local/include/ /usr/local/include/
+COPY  --from=dev /usr/local/lib/ /usr/local/lib/
+
+RUN set -x; \
+	apt-get update && apt-get install -y --no-install-recommends \
+	build-essential \
+	lcov \
+	cmake ; \
+	rm -rf /var/lib/apt/lists/*

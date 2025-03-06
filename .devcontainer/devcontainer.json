@@ -4,7 +4,8 @@
 	"name": "ft_ping",
 	"build": {
 		"dockerfile": "../Dockerfile",
-		"context": "."
+		"context": ".",
+		"target": "dev"
 	},
 	"runArgs": [
 		"-it", "--rm",
