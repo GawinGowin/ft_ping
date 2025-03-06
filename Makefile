@@ -7,6 +7,7 @@ SOURCE =
 SOURCE += cmd/ft_ping/ft_ping.c
 SOURCE += cmd/ft_ping/usecases.c
 SOURCE += cmd/ft_ping/utils.c
+SOURCE += cmd/ft_ping/setup.c
 
 HEADER =
 HEADER += cmd/ft_ping/ft_ping.h
