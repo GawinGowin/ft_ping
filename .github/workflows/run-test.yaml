@@ -11,7 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/gawingowin/ft_ping_ci:d159531
+      image: ghcr.io/gawingowin/ft_ping_ci:4e49774
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.PULL_KEY }}
