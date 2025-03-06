@@ -8,10 +8,10 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state) {
       state->opt_verbose = 1;
       break;
     case 'c':
-      state->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX);
+      state->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
     case 's':
-      state->datalen = parse_long(optarg, "invalid argument", 0, INT_MAX);
+      state->datalen = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
     default:
       return (2);
