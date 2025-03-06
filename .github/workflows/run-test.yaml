@@ -4,14 +4,14 @@ on:
   pull_request:
     branches: ["main", "ci-*"]
   push:
-    branches: ["main", "ci-*"]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/gawingowin/ft_ping_ci:fc84717
+      image: ghcr.io/gawingowin/ft_ping_ci:4d1e95a
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.PULL_KEY }}
