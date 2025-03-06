@@ -24,6 +24,9 @@ DOBJS := $(SOURCE:.c=_d.o)
 DEP = $(OBJS:.o=.d)
 DDEP = $(DOBJS:.o=.d)
 
+COV_INFO = coverage.info
+TEST_LOG = build/tests/Testing/Temporary/LastTest.log
+
 .PHONY: all
 all: $(NAME)
 
