@@ -1,0 +1,6 @@
+[submodule "reference/iputils"]
+	path = reference/iputils
+	url = https://salsa.debian.org/debian/iputils.git
+[submodule "reference/Networking"]
+	path = reference/Networking
+  url = https://github.com/tanuki-project/Networking.git

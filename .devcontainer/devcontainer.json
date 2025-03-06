@@ -13,6 +13,9 @@
 	],
 	"workspaceFolder": "/workspace",
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+	"mounts": [
+		{ "source": "reference", "target": "/workspace/reference", "type": "volume" }
+	],
 	"postCreateCommand": "echo \"source /usr/share/bash-completion/completions/git\" >> ~/.bashrc",
 	"postStartCommand": "git config --global alias.al 'config --get-regexp ^alias\\.' && git config --global alias.f 'fetch --all --prune' && git config --global alias.pf 'push --force-with-lease'",
 	"remoteUser": "root",

@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ping",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/reference/iputils/builddir/ping/ping",
+      "args": [
+        "host.docker.internal"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "ping_make",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    }
+  ]
+}
