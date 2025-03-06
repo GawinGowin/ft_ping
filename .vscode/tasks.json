@@ -2,6 +2,17 @@
   "tasks": [
     {
       "type": "cppbuild",
+      "label": "ft_ping_make",
+      "command": "make",
+      "args": [
+        "debug"
+      ],
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "type": "cppbuild",
       "label": "ping_make",
       "command": "make",
       "args": [

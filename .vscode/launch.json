@@ -2,6 +2,22 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "ft_ping",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/ft_ping_debug",
+      "args": [
+        "host.docker.internal"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "ft_ping_make",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    {
       "name": "ping",
       "type": "cppdbg",
       "request": "launch",
