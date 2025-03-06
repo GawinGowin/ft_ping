@@ -1,3 +1,5 @@
+[![C/C++ Test](https://github.com/GawinGowin/ft_ping/actions/workflows/run-test.yaml/badge.svg)](https://github.com/GawinGowin/ft_ping/actions/workflows/run-test.yaml)
+[![codecov](https://codecov.io/gh/GawinGowin/ft_ping/graph/badge.svg?token=ApUfGXUe1u)](https://codecov.io/gh/GawinGowin/ft_ping)
 <p align="center">
 <picture>
  <source media="(prefers-color-scheme: dark)" srcset="./images/ft_ping_dark.png">

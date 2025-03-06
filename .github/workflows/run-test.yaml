@@ -2,7 +2,7 @@ name: C/C++ Test
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ["main", "ci-*"]
   push:
     branches: ["main"]
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/gawingowin/ft_ping_ci:d159531
+      image: ghcr.io/gawingowin/ft_ping_ci:4d1e95a
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.PULL_KEY }}
