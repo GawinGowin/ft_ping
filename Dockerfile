@@ -33,6 +33,8 @@ RUN set -x; \
 	apt-get update && apt-get install -y --no-install-recommends \
   git \
   ca-certificates \
+  curl \
+  gpg \
 	build-essential \
 	lcov \
 	cmake ; \
