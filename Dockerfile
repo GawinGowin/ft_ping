@@ -32,6 +32,7 @@ COPY --from=dev /usr/local/lib/ /usr/local/lib/
 RUN set -x; \
 	apt-get update && apt-get install -y --no-install-recommends \
   git \
+  ca-certificates \
 	build-essential \
 	lcov \
 	cmake ; \
