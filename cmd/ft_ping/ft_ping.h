@@ -39,6 +39,11 @@ typedef struct ping_state {
 
 /* UseCases */
 int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state);
+void show_usage_usecase(void);
+
+/* lifecycle */
+int init(t_ping_state *state, char **argv);
+void cleanup(int status, void *state);
 
 /* utils */
 long parse_long(
@@ -51,4 +56,3 @@ long parse_long(
 void error(int status, const char *format, ...);
 
 #endif /* FT_PING_H */
-

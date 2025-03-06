@@ -8,7 +8,6 @@ void error(int status, const char *format, ...) {
   va_start(ap, format);
   vfprintf(stderr, format, ap);
   va_end(ap);
-  fprintf(stderr, "\n");
   if (status)
     exit(status);
 }
@@ -16,7 +15,7 @@ void error(int status, const char *format, ...) {
 void error(int status, const char *format, ...) {
   char buffer[1024];
   va_list args;
-  fprintf(stderr, "%s: %d", program_invocation_short_name, status);
+  fprintf(stderr, "%s: (%d) ", program_invocation_short_name, status);
   va_start(args, format);
   vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
@@ -24,7 +23,12 @@ void error(int status, const char *format, ...) {
 }
 #endif
 
-long parse_long(char const *const str, const char *const msg, const long min, const long max, void (*errorfn)(int, const char *, ...)) {
+long parse_long(
+    char const *const str,
+    const char *const msg,
+    const long min,
+    const long max,
+    void (*errorfn)(int, const char *, ...)) {
   char *endptr;
 
   if (str == NULL || *str == '\0') {

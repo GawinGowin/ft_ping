@@ -1,8 +1,12 @@
 #include "ft_ping.h"
 
-static void usage();
-static void signal_handler(int signo);
 static void configure_state(t_ping_state *state);
+
+static void signal_handler(int signo) {
+  if (signo == SIGINT) {
+    printf("SIGINT\n");
+  }
+}
 
 int entrypoint(int argc, char **argv) {
   t_ping_state state;
@@ -18,7 +22,7 @@ int entrypoint(int argc, char **argv) {
   int err;
   if ((err = parse_arg_usecase(&argc, &argv, &state)) != 0) {
     if (err == 2) {
-      usage();
+      show_usage_usecase();
     }
     return (err);
   }
@@ -26,27 +30,22 @@ int entrypoint(int argc, char **argv) {
   if (argc != 1) {
     error(2, "usage error: only one destination address required\n");
   }
+  // init(&state, argv);
+  // main_loop(&state, argv[0]);
+  // cleanup(0, &state);
   return (0);
 }
 
-static void usage() {
-  char usage_msg[] = {"\nUsage: %s [-v] destination\n\n"
-                      "Options:\n"
-                      "<destination>      dns name or ip address\n"
-                      "-v                 verbose output\n"
-                      "-c <count>         stop after <count> replies\n"
-                      "-s <size>          use <size> as number of data bytes to be sent\n"
-                      "-h                 display this help and exit\n"
-                      "\n"
-                      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
-  fprintf(stderr, usage_msg, program_invocation_short_name);
-}
-
-static void signal_handler(int signo) {
-  if (signo == SIGINT) {
-    printf("SIGINT\n");
-  }
-}
+// void main_loop(t_ping_state *state, const char *dest) {
+//   long count = state->npackets;
+//   for (long i = 0; i < count; i++) {
+//     send_ping(state, dest);
+//     recv_ping(state);
+//   }
+//   if (state->opt_verbose) {
+//     printf("PING %s (%s) %d(%d) bytes of data.\n", dest, dest, state->datalen, state->datalen + 8);
+//   }
+// }
 
 static void configure_state(t_ping_state *state) {
   state->sockfd = -1;
