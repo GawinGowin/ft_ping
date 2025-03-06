@@ -46,7 +46,7 @@ $(DNAME): $(DOBJS)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) $(DOBJS) $(DEP) $(DDEP)
+	rm -f $(OBJS) $(DOBJS) $(DEP) $(DDEP) $(COV_INFO)
 
 .PHONY: fclean
 fclean: clean
@@ -69,8 +69,13 @@ build:
 test: build
 	cd $(BUILD_DIR)/tests && make test
 
+$(TEST_LOG): test
+
+
+$(COV_INFO): $(TEST_LOG)
+	lcov --capture --directory . --output-file $(COV_INFO)
+	lcov --remove $(COV_INFO) '/usr/*' --output-file $(COV_INFO) # filter system-files
+
 .PHONY: cov
-cov: build
-	lcov --capture --directory . --output-file coverage.info
-	lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter system-files
-	lcov --list coverage.info # debug info
+cov: $(COV_INFO)
+	lcov --list $(COV_INFO) # debug info

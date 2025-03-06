@@ -1,0 +1,32 @@
+name: C/C++ Test
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/gawingowin/ft_ping_ci:d159531
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.PULL_KEY }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: run test
+      run: make -s test
+    - name: upload test logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: Test-Logs
+        path: build/pkg/tests/Testing/Temporary/LastTest.log
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
