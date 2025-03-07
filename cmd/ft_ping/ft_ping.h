@@ -5,6 +5,10 @@
 #define _GNU_SOURCE
 #endif
 
+#ifndef SOL_SOCKET
+#define SOL_SOCKET IPPROTO_IP
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -23,15 +27,11 @@
 #include <netinet/ip_icmp.h>
 #include <sys/socket.h>
 
-#ifndef SOL_SOCKET
-#define SOL_SOCKET IPPROTO_IP
-#endif
-
 typedef struct ping_state {
   int sockfd;
   int datalen;
+  int sndbuf; // TODO: check: `datalen` とフィールドの役割が競合するかも
   long npackets;
-
   struct sockaddr_in whereto;
 
   char *hostname;
@@ -39,12 +39,15 @@ typedef struct ping_state {
 } t_ping_state;
 
 /* UseCases */
+int initialize_usecase(t_ping_state *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state);
 void show_usage_usecase(void);
+void cleanup_usecase(int status, void *state);
 
-/* lifecycle */
-int init(t_ping_state *state, char **argv);
-void cleanup(int status, void *state);
+/* Infra */
+int is_ipv6_address(const char *addr);
+int create_socket_with_fallback(void);
+void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 
 /* utils */
 long parse_long(

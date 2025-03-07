@@ -19,7 +19,7 @@ void error(int status, const char *format, ...) {
   va_start(args, format);
   vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
-  fprintf(stderr, "(%s)\n", buffer);
+  fprintf(stderr, "%s", buffer);
 }
 #endif
 

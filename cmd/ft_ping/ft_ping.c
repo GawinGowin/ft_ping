@@ -12,7 +12,7 @@ int entrypoint(int argc, char **argv) {
   t_ping_state state;
   configure_state(&state);
 
-  if (on_exit(cleanup, (void *)&state) != 0) {
+  if (on_exit(cleanup_usecase, (void *)&state) != 0) {
     error(1, "on_exit failed\n");
     return (1);
   }
@@ -28,9 +28,9 @@ int entrypoint(int argc, char **argv) {
   }
 
   if (argc != 1) {
-    error(2, "usage error: only one destination address required\n");
+    error(2, "usage error: Destination address required\n");
   }
-  init(&state, argv);
+  initialize_usecase(&state, argv);
   // main_loop(&state, argv[0]);
   return (0);
 }
@@ -47,10 +47,12 @@ int entrypoint(int argc, char **argv) {
 // }
 
 static void configure_state(t_ping_state *state) {
+  // temp values
   state->sockfd = -1;
   state->datalen = 56;
   state->npackets = 4;
   state->opt_verbose = 0;
+  state->sndbuf = 64 * 1024;
 }
 
 #ifndef TESTING
