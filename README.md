@@ -1,4 +1,5 @@
 [![C/C++ Test](https://github.com/GawinGowin/ft_ping/actions/workflows/run-test.yaml/badge.svg)](https://github.com/GawinGowin/ft_ping/actions/workflows/run-test.yaml)
+[![CodeQL](https://github.com/GawinGowin/ft_ping/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/GawinGowin/ft_ping/actions/workflows/github-code-scanning/codeql)
 [![codecov](https://codecov.io/gh/GawinGowin/ft_ping/graph/badge.svg?token=ApUfGXUe1u)](https://codecov.io/gh/GawinGowin/ft_ping)
 <p align="center">
 <picture>
