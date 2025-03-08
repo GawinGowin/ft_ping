@@ -50,9 +50,13 @@ static void configure_state(t_ping_state *state) {
   // temp values
   state->sockfd = -1;
   state->datalen = 56;
+  state->sndbuf = 64 * 1024;
+  state->rcvbuf = 64 * 1024;
+  state->ttl = 64;
+  state->tos = 0;
+
   state->npackets = 4;
   state->opt_verbose = 0;
-  state->sndbuf = 64 * 1024;
 }
 
 #ifndef TESTING

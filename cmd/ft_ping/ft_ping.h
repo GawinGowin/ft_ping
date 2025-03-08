@@ -31,6 +31,10 @@ typedef struct ping_state {
   int sockfd;
   int datalen;
   int sndbuf; // TODO: check: `datalen` とフィールドの役割が競合するかも
+  int rcvbuf;
+  int ttl;
+  int tos;
+
   long npackets;
   struct sockaddr_in whereto;
 
