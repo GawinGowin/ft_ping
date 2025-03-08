@@ -24,10 +24,11 @@ class CreateEchoRequestPacket : public ::testing::TestWithParam<TestData> {};
 
 TEST_P(CreateEchoRequestPacket, Case) {
   t_icmp icmp;
+  void *packet;
 
+  packet = (void *)&icmp;
   auto param = GetParam();
-
-  create_echo_request_packet(&icmp, param.id, param.seq);
+  create_echo_request_packet(packet, param.id, param.seq);
   EXPECT_EQ(icmp, param.expected_icmp);
 }
 

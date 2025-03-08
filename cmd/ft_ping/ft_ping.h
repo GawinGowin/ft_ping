@@ -46,6 +46,7 @@ typedef struct ping_state {
 /* UseCases */
 int initialize_usecase(t_ping_state *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state);
+int send_ping_usecase(void *packet, int datalen, int sockfd, struct sockaddr_in *whereto);
 void show_usage_usecase(void);
 void cleanup_usecase(int status, void *state);
 

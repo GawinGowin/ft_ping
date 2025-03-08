@@ -62,6 +62,19 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state) {
   return (0);
 }
 
+int send_ping_usecase(void *packet, int datalen, int sockfd, struct sockaddr_in *whereto) {
+  int cc = sendto(
+      sockfd, packet, sizeof(t_icmp) + datalen, 0, (struct sockaddr *)whereto, sizeof(*whereto));
+  if (cc < 0) {
+    if (errno == ENOBUFS || errno == ENOMEM) {
+      return -1;
+    }
+    error(0, "sendto: %s\n", strerror(errno));
+    return -1;
+  }
+  return cc;
+}
+
 void show_usage_usecase(void) {
   char usage_msg[] = {"\nUsage:\n  %s [options] <destination>\n\n"
                       "Options:\n"

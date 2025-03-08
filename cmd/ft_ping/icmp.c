@@ -1,5 +1,25 @@
 #include "icmp.h"
 
+void generate_packet_data(void *packet, int datalen) {
+  if (packet == NULL || datalen <= 0) {
+    return;
+  }
+  unsigned char *data = GET_PACKET_DATA(packet);
+  for (int i = 0; i < datalen; i++) {
+    data[i] = (unsigned char) i % UCHAR_MAX;
+  }
+  return;
+}
+
+void set_timestamp(void *packet) {
+  struct timespec now;
+
+  t_icmp *icmp = (t_icmp *)packet;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  icmp->timestamp = (uint64_t)now.tv_sec * 1000000000ULL + now.tv_nsec;
+  return;
+}
+
 int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq) {
   struct timespec now;
 
