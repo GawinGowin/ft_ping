@@ -26,12 +26,11 @@ int entrypoint(int argc, char **argv) {
     }
     return (err);
   }
-
   if (argc != 1) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&state, argv);
-  // main_loop(&state, argv[0]);
+  main_loop(&state, argv[0]);
   return (0);
 }
 
@@ -45,6 +44,35 @@ int entrypoint(int argc, char **argv) {
 //     printf("PING %s (%s) %d(%d) bytes of data.\n", dest, dest, state->datalen, state->datalen + 8);
 //   }
 // }
+
+void main_loop(t_ping_state *state, const char *dest) {
+  printf(
+      "PING %s (%s): %d data bytes\n", state->hostname, inet_ntoa(state->whereto.sin_addr),
+      state->datalen);
+
+  void *packet = malloc(sizeof(t_icmp) - sizeof(uint64_t) + state->datalen);
+  // pingループ
+  for (int i = 0; i < state->npackets || state->npackets <= 0; i++) {
+    create_echo_request_packet(packet, 0, i);
+    
+    int cc = send_ping_usecase(state); // TODO: ここを直す
+    if (cc < 0) {
+      if (errno == ENOBUFS) {
+        printf("Device busy\n");
+        // バッファが空くまで待機
+        usleep(10000); // 10ms待機
+        continue;
+      }
+    }
+
+    // レスポンス待機を実装（次のステップで）
+    // receive_ping(state);
+
+    // 一定間隔をあける
+    usleep(1000000); // 1秒
+  }
+  free(packet);
+}
 
 static void configure_state(t_ping_state *state) {
   // temp values
