@@ -1,19 +1,29 @@
 #include "icmp.h"
 
-static uint16_t culculateChecksum(void *data, int len);
+int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq) {
+  struct timespec now;
 
-int createEchoRequestPacket(t_icmp *packet, uint16_t id, uint16_t seq) {
-  packet->type = 8;
-  packet->code = 0;
-  packet->id = id;
-  packet->seq = seq; // 1, 2, 3, ...
+  t_icmp *icmp = (t_icmp *)packet;
 
-  packet->checksum = 0;
-  packet->checksum = culculateChecksum((void *)packet, sizeof(t_icmp));
+  icmp->type = ICMP_ECHO;
+  icmp->code = 0;
+  icmp->id = htons(id);
+  icmp->seq = htons(seq);
+
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  icmp->timestamp = (uint64_t)now.tv_sec * 1000000000ULL + now.tv_nsec;
+
+  // この辺は別の関数で行う
+  // if (data && datalen > 0) {
+  //   memcpy((char *)(packet + 1), data, datalen);
+  // }
+
+  // packet->checksum = 0;
+  // packet->checksum = calculate_checksum((void *)packet, sizeof(t_icmp) + datalen);
   return 0;
 }
 
-static uint16_t culculateChecksum(void *data, int len) {
+uint16_t calculate_checksum(void *data, int len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
 
