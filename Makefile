@@ -5,6 +5,7 @@ BASE_PKG_DIR = cmd/ft_ping/
 
 SOURCE =
 SOURCE += cmd/ft_ping/ft_ping.c
+SOURCE += cmd/ft_ping/infra.c
 SOURCE += cmd/ft_ping/usecases.c
 SOURCE += cmd/ft_ping/utils.c
 
