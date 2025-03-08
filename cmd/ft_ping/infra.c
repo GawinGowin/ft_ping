@@ -1,6 +1,9 @@
 #include "ft_ping.h"
 
 int is_ipv6_address(const char *addr) {
+  if (!addr) {
+    return 0;
+  }
   struct in6_addr ipv6_addr;
   return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
 }
@@ -34,12 +37,8 @@ void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   };
   struct addrinfo *result;
   int ret = getaddrinfo(hostname, NULL, &hints, &result);
-  if (ret != 0) {
+  if (ret != 0 || !result) {
     error(1, "getaddrinfo failed: %s\n", gai_strerror(ret));
-  }
-
-  if (!result) {
-    error(1, "No address found for hostname: %s\n", hostname);
   }
 
   struct sockaddr_in *addr_in = (struct sockaddr_in *)result->ai_addr;
