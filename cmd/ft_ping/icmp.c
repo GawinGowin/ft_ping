@@ -6,7 +6,7 @@ void generate_packet_data(void *packet, int datalen) {
   }
   unsigned char *data = GET_PACKET_DATA(packet);
   for (int i = 0; i < datalen; i++) {
-    data[i] = (unsigned char) i % UCHAR_MAX;
+    data[i] = (unsigned char)i % UCHAR_MAX;
   }
   return;
 }

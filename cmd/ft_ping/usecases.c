@@ -62,9 +62,8 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state) {
   return (0);
 }
 
-int send_ping_usecase(void *packet, int datalen, int sockfd, struct sockaddr_in *whereto) {
-  int cc = sendto(
-      sockfd, packet, sizeof(t_icmp) + datalen, 0, (struct sockaddr *)whereto, sizeof(*whereto));
+int send_ping_usecase(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto) {
+  int cc = sendto(sockfd, packet, packet_size, 0, (struct sockaddr *)whereto, sizeof(*whereto));
   if (cc < 0) {
     if (errno == ENOBUFS || errno == ENOMEM) {
       return -1;

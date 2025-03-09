@@ -1,4 +1,5 @@
 #include "ft_ping.h"
+#include "icmp.h"
 
 static void configure_state(t_ping_state *state);
 
@@ -7,6 +8,8 @@ static void signal_handler(int signo) {
     printf("SIGINT\n");
   }
 }
+
+static void main_loop(t_ping_state *state);
 
 int entrypoint(int argc, char **argv) {
   t_ping_state state;
@@ -26,25 +29,39 @@ int entrypoint(int argc, char **argv) {
     }
     return (err);
   }
-
   if (argc != 1) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&state, argv);
-  // main_loop(&state, argv[0]);
+  main_loop(&state);
   return (0);
 }
 
-// void main_loop(t_ping_state *state, const char *dest) {
-//   long count = state->npackets;
-//   for (long i = 0; i < count; i++) {
-//     send_ping(state, dest);
-//     recv_ping(state);
-//   }
-//   if (state->opt_verbose) {
-//     printf("PING %s (%s) %d(%d) bytes of data.\n", dest, dest, state->datalen, state->datalen + 8);
-//   }
-// }
+static void main_loop(t_ping_state *state) {
+  printf(
+      "PING %s (%s): %d data bytes\n", state->hostname, inet_ntoa(state->whereto.sin_addr),
+      state->datalen);
+  size_t packet_size = sizeof(t_icmp) + state->datalen - sizeof(uint64_t);
+  void *packet = malloc(packet_size);
+  // pingループ
+  for (int i = 0; i < state->npackets || state->npackets <= 0; i++) {
+    create_echo_request_packet(packet, 0, i);
+    t_icmp *icmp = (t_icmp *)packet;
+    icmp->checksum = 0;
+    icmp->checksum = calculate_checksum(packet, packet_size);
+    int cc = send_ping_usecase(packet, packet_size, state->sockfd, &state->whereto);
+    if (cc < 0) {
+      if (errno == ENOBUFS) {
+        printf("Device busy\n");
+        usleep(10000);
+        continue;
+      }
+    }
+    // TODO: レスポンス待機
+    usleep(1000000);
+  }
+  free(packet);
+}
 
 static void configure_state(t_ping_state *state) {
   // temp values
