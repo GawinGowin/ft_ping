@@ -68,7 +68,7 @@ int send_ping_usecase(void *packet, size_t packet_size, int sockfd, struct socka
     if (errno == ENOBUFS || errno == ENOMEM) {
       return -1;
     }
-    error(0, "sendto: %s\n", strerror(errno));
+    fprintf(stderr, "sendto: %s\n", strerror(errno));
     return -1;
   }
   return cc;

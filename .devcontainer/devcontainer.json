@@ -10,7 +10,8 @@
 	"runArgs": [
 		"-it", "--rm",
 		"--name", "ft_ping",
-    "--privileged"
+    "--privileged",
+    "--network", "host"
 	],
 	"workspaceFolder": "/workspace",
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
@@ -37,7 +38,8 @@
 				"waderyan.gitblame",
 				"ms-python.python",
 				"ms-python.debugpy",
-				"saoudrizwan.claude-dev"
+				"saoudrizwan.claude-dev",
+				"ms-vscode.hexeditor"
 			],
 			"settings": {
 				"editor.insertSpaces": false,

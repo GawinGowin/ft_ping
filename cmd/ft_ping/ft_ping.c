@@ -38,14 +38,17 @@ int entrypoint(int argc, char **argv) {
 }
 
 static void main_loop(t_ping_state *state) {
+  size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + state->datalen;
   printf(
-      "PING %s (%s): %d data bytes\n", state->hostname, inet_ntoa(state->whereto.sin_addr),
-      state->datalen);
-  size_t packet_size = sizeof(t_icmp) + state->datalen - sizeof(uint64_t);
+      "PING %s (%s):  %d(%zu) bytes of data.\n", state->hostname,
+      inet_ntoa(state->whereto.sin_addr), state->datalen, packet_size);
   void *packet = malloc(packet_size);
-  // pingループ
+  // pingループ (このループ内でexitをしてはならない)
+  // TODO: SIGINTで終了できるようにする
   for (int i = 0; i < state->npackets || state->npackets <= 0; i++) {
     create_echo_request_packet(packet, 0, i);
+    generate_packet_data(packet, state->datalen);
+    set_timestamp(packet);
     t_icmp *icmp = (t_icmp *)packet;
     icmp->checksum = 0;
     icmp->checksum = calculate_checksum(packet, packet_size);
@@ -72,7 +75,7 @@ static void configure_state(t_ping_state *state) {
   state->ttl = 64;
   state->tos = 0;
 
-  state->npackets = 4;
+  state->npackets = -1;
   state->opt_verbose = 0;
 }
 
