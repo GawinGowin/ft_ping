@@ -45,40 +45,73 @@ static void main_loop(t_ping_master *master) {
       "PING %s (%s) %d(%zu) bytes of data.\n", master->hostname,
       inet_ntoa(master->whereto.sin_addr), master->datalen,
       packet_size + IPV4_HEADER_SIZE);
-  void *packet = malloc(packet_size);
+  
+  /* Allocate memory for packet buffer (including IP header for receiving) */
+  void *packet = malloc(packet_size + sizeof(struct ip));
   if (!packet) {
     error(1, "malloc failed\n");
   }
 
   long ntransmitted = 0;
-  // long nreceived = 0;
 
-  // int sock_flags = fcntl(master->sockfd, F_GETFL, 0);
-  // fcntl(master->sockfd, F_SETFL, sock_flags | O_NONBLOCK);
+  /* Set socket to non-blocking mode */
+  int sock_flags = fcntl(master->sockfd, F_GETFL, 0);
+  fcntl(master->sockfd, F_SETFL, sock_flags | O_NONBLOCK);
 
-  // struct pollfd pfd;
-  // pfd.fd = master->sockfd;
-  // pfd.events = POLLIN;
+  /* Configure poll for timeout handling */
+  struct pollfd pfd;
+  pfd.fd = master->sockfd;
+  pfd.events = POLLIN;
 
+  /* Send preload packets if specified */
+  if (master->preload > 0) {
+    int i;
+    for (i = 0; i < master->preload && (!master->npackets || i < master->npackets); i++) {
+      int ret = pinger(master, &ntransmitted, packet, packet_size);
+      if (ret < 0) {
+        fprintf(stderr, "pinger error during preload: %s\n", strerror(errno));
+      }
+    }
+  }
+
+  /* Main ping loop */
   while (!g_is_exiting && (master->npackets <= 0 || ntransmitted < master->npackets)) {
     int next_ping_ms = pinger(master, &ntransmitted, packet, packet_size);
     if (next_ping_ms < 0) {
       fprintf(stderr, "pinger error: %s\n", strerror(errno));
       continue;
     }
-    // pfd.revents = 0;
-    // int ret = poll(&pfd, 1, next_ping_ms);
-    // if (ret < 0) {
-    //   if (errno == EINTR)
-    //     continue;
-    //   fprintf(stderr, "poll error: %s\n", strerror(errno));
-    //   break;
-    // }
-    // if (ret > 0 && (pfd.revents & POLLIN)) {
-    //   while (receive_packet(state, packet, packet_size) > 0) {
-    //   }
-    // }
+    
+    /* Wait for response or timeout */
+    pfd.revents = 0;
+    int ret = poll(&pfd, 1, next_ping_ms);
+    if (ret < 0) {
+      if (errno == EINTR)
+        continue;
+      fprintf(stderr, "poll error: %s\n", strerror(errno));
+      break;
+    }
+    
+    /* Timeout occurred */
+    if (ret == 0) {
+      master->stats.timeout_count++;
+      if (master->opt_verbose) {
+        fprintf(stderr, "Request timeout for icmp_seq=%ld\n", ntransmitted - 1);
+      }
+      continue;
+    }
+    
+    /* Process received packets */
+    if (ret > 0 && (pfd.revents & POLLIN)) {
+      int count = 0;
+      while (receive_packet(master, packet, packet_size) > 0 && count < 100) {
+        count++;  /* Limit to prevent endless loop */
+      }
+    }
   }
+  
+  /* Print statistics on exit */
+  print_statistics(master);
   free(packet);
 }
 
@@ -96,6 +129,7 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
       // Note: 本物のpingでは送信間隔の調整など複雑なエラーハンドリングが行われていた
       return -1;
     }
+    master->stats.sent++;  /* Update sent packet counter */
     (*ntransmitted)++;
     return master->interval;
   }
@@ -110,12 +144,51 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
   if (cc < 0) {
     return -1;
   }
+  master->stats.sent++;  /* Update sent packet counter */
   (*ntransmitted)++;
   return master->interval;
 }
 
+static void print_statistics(t_ping_master *master) {
+  double loss = 0.0;
+  double rtt_avg = 0.0;
+  double rtt_mdev = 0.0;
+  
+  if (master->stats.sent > 0) {
+    loss = 100.0 - ((double)master->stats.received / (double)master->stats.sent * 100.0);
+  }
+  
+  if (master->stats.received > 0) {
+    rtt_avg = master->stats.rtt_sum / master->stats.received;
+    
+    /* Standard deviation calculation */
+    if (master->stats.received > 1) {
+      rtt_mdev = sqrt(
+        (master->stats.rtt_sum_sq - (master->stats.rtt_sum * master->stats.rtt_sum) / master->stats.received) /
+        (master->stats.received - 1)
+      );
+    }
+  }
+  
+  printf("\n--- %s ping statistics ---\n", master->hostname);
+  printf("%ld packets transmitted, %ld received, ", 
+         master->stats.sent, master->stats.received);
+  
+  if (master->stats.errors > 0) {
+    printf("+%ld errors, ", master->stats.errors);
+  }
+  
+  printf("%.1f%% packet loss, time %ldms\n", 
+         loss, (long)(master->stats.rtt_sum));
+  
+  if (master->stats.received > 0) {
+    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
+           master->stats.rtt_min, rtt_avg, master->stats.rtt_max, rtt_mdev);
+  }
+}
+
 static void configure_state(t_ping_master *master) {
-  // temp values
+  /* Basic settings */
   master->sockfd = -1;
   master->datalen = 56;
   master->ttl = 64;
@@ -125,6 +198,12 @@ static void configure_state(t_ping_master *master) {
   master->interval = 1000;
   master->npackets = -1;
   master->opt_verbose = 0;
+  master->timeout = 1000;  /* Default timeout: 1 second */
+  master->pid = (uint16_t)getpid() & 0xFFFF;
+  
+  /* Initialize statistics */
+  memset(&master->stats, 0, sizeof(master->stats));
+  master->stats.rtt_min = -1;  /* Will be set on first received packet */
 }
 
 #ifndef TESTING
