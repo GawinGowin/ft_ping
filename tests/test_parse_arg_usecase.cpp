@@ -7,12 +7,12 @@ extern "C" {
 
 class ParseArgUsecaseTest : public ::testing::Test {
 protected:
-  t_ping_state state;
+  t_ping_master state;
   char **test_argv;
   int test_argc;
 
   void SetUp() override {
-    memset(&state, 0, sizeof(t_ping_state));
+    memset(&state, 0, sizeof(t_ping_master));
     optind = 1;
     opterr = 1;
     optopt = 0;
