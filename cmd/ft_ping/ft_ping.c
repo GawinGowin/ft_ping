@@ -48,7 +48,7 @@ static void main_loop(t_ping_state *state) {
   for (int i = 0; i < state->npackets || state->npackets <= 0; i++) {
     create_echo_request_packet(packet, 0, i);
     generate_packet_data(packet, state->datalen);
-    set_timestamp(packet);
+    set_timestamp(packet, state->datalen);
     t_icmp *icmp = (t_icmp *)packet;
     icmp->checksum = 0;
     icmp->checksum = calculate_checksum(packet, packet_size);
@@ -70,10 +70,10 @@ static void configure_state(t_ping_state *state) {
   // temp values
   state->sockfd = -1;
   state->datalen = 56;
-  state->sndbuf = 64 * 1024;
-  state->rcvbuf = 64 * 1024;
   state->ttl = 64;
   state->tos = 0;
+  state->preload = 1;
+  state->sndbuf = 0;
 
   state->npackets = -1;
   state->opt_verbose = 0;

@@ -28,16 +28,20 @@
 
 #include "icmp.h"
 
+#define IPV4_HEADER_SIZE 20
+
 typedef struct ping_state {
   int sockfd;
   int datalen;
-  int sndbuf; // TODO: check: `datalen` とフィールドの役割が競合するかも
-  int rcvbuf;
   int ttl;
   int tos;
+  int preload;
 
   long npackets;
   struct sockaddr_in whereto;
+
+  size_t sndbuf;
+  size_t rcvbuf;
 
   char *hostname;
   unsigned int opt_verbose : 1;

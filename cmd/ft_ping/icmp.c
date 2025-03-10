@@ -1,18 +1,21 @@
 #include "icmp.h"
 
-void generate_packet_data(void *packet, int datalen) {
+void generate_packet_data(void *packet, size_t datalen) {
   if (packet == NULL || datalen <= 0) {
     return;
   }
   unsigned char *data = GET_PACKET_DATA(packet);
-  for (int i = 0; i < datalen; i++) {
-    data[i] = (unsigned char)i % UCHAR_MAX;
+  for (size_t i = 0; i < datalen; i++) {
+    data[i] = (unsigned char)((size_t)i % UCHAR_MAX);
   }
   return;
 }
 
-void set_timestamp(void *packet) {
+void set_timestamp(void *packet, size_t datalen) {
   struct timeval tmp_tv;
+  if (datalen < sizeof(tmp_tv)) {
+    return;
+  }
   gettimeofday(&tmp_tv, NULL);
   t_icmp *icpm = (t_icmp *)packet;
   memcpy(&icpm->timestamp, &tmp_tv, sizeof(tmp_tv));

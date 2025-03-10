@@ -1,5 +1,7 @@
 #include "ft_ping.h"
 
+static void set_socket_buff(t_ping_state *state);
+
 int initialize_usecase(t_ping_state *state, char **argv) {
   char *target = *argv;
   state->hostname = target;
@@ -13,13 +15,7 @@ int initialize_usecase(t_ping_state *state, char **argv) {
   if (state->sockfd < 0) {
     error(1, "Failed to create socket: %s\n", strerror(errno));
   }
-  // ソケットオプション
-  if (setsockopt(state->sockfd, SOL_SOCKET, SO_SNDBUF, &state->sndbuf, sizeof(state->sndbuf)) < 0) {
-    error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
-  }
-  if (setsockopt(state->sockfd, SOL_SOCKET, SO_RCVBUF, &state->rcvbuf, sizeof(state->rcvbuf)) < 0) {
-    error(1, "setsockopt SO_RCVBUF failed: %s\n", strerror(errno));
-  }
+  set_socket_buff(state);
   if (setsockopt(state->sockfd, IPPROTO_IP, IP_TTL, &state->ttl, sizeof(state->ttl)) < 0) {
     error(1, "setsockopt IP_TTL failed: %s\n", strerror(errno));
   }
@@ -34,9 +30,41 @@ int initialize_usecase(t_ping_state *state, char **argv) {
   return (0);
 }
 
+static void set_socket_buff(t_ping_state *state) {
+  size_t send = state->datalen + 8;
+
+  send += ((send + 511) / 512) * (IPV4_HEADER_SIZE + 240); // 240 is the overhead of IP options
+  if (send > INT_MAX) {
+    error(1, "Buffer size too large: %zu\n", send);
+  }
+  if (state->sndbuf == 0) {
+    state->sndbuf = (int)send;
+  }
+  if (setsockopt(
+          state->sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&state->sndbuf, sizeof(state->sndbuf)) <
+      0) {
+    error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
+  }
+
+  size_t rcvbuf, hold;
+  rcvbuf = hold = send * state->preload;
+  if (hold < 65536)
+    hold = 65536;
+  if (rcvbuf > INT_MAX || hold > INT_MAX) {
+    error(1, "Buffer size too large: %zu\n", rcvbuf);
+  }
+  socklen_t tmplen = sizeof(hold);
+  state->rcvbuf = (int)rcvbuf;
+  setsockopt(state->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&state->rcvbuf, sizeof(state->rcvbuf));
+  if (getsockopt(state->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&hold, &tmplen) == 0) {
+    if (hold < rcvbuf)
+      error(0, "WARNING: probably, rcvbuf is not enough to hold preload\n");
+  }
+}
+
 int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "hvt:Q:c:s:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "hvt:Q:c:S:s:l:")) != EOF) {
     switch (ch) {
     case 'v':
       state->opt_verbose = 1;
@@ -50,8 +78,14 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state) {
     case 'c':
       state->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
+    case 'S':
+      state->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
+      break;
     case 's':
       state->datalen = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
+      break;
+    case 'l':
+      state->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
       break;
     default:
       return (2);
