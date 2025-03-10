@@ -42,8 +42,9 @@ int entrypoint(int argc, char **argv) {
 static void main_loop(t_ping_master *master) {
   size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master->datalen;
   printf(
-      "PING %s (%s):  %d(%zu) bytes of data.\n", master->hostname,
-      inet_ntoa(master->whereto.sin_addr), master->datalen, packet_size);
+      "PING %s (%s) %d(%zu) bytes of data.\n", master->hostname,
+      inet_ntoa(master->whereto.sin_addr), master->datalen,
+      packet_size + 20); // 20: IP headerのサイズ
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
@@ -95,7 +96,7 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
       // Note: 本物のpingでは送信間隔の調整など複雑なエラーハンドリングが行われていた
       return -1;
     }
-    (*ntransmitted) ++;
+    (*ntransmitted)++;
     return master->interval;
   }
   gettimeofday(&now, NULL);
@@ -109,7 +110,7 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
   if (cc < 0) {
     return -1;
   }
-  (*ntransmitted) ++;
+  (*ntransmitted)++;
   return master->interval;
 }
 
