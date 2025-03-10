@@ -11,14 +11,12 @@ void generate_packet_data(void *packet, size_t datalen) {
   return;
 }
 
-void set_timestamp(void *packet, size_t datalen) {
-  struct timeval tmp_tv;
-  if (datalen < sizeof(tmp_tv)) {
+void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp) {
+  if (datalen < sizeof(*timestamp)) {
     return;
   }
-  gettimeofday(&tmp_tv, NULL);
   t_icmp *icpm = (t_icmp *)packet;
-  memcpy(&icpm->timestamp, &tmp_tv, sizeof(tmp_tv));
+  memcpy(&icpm->timestamp, timestamp, sizeof(*timestamp));
   return;
 }
 

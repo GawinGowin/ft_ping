@@ -24,7 +24,7 @@ typedef struct s_icmp {
 } __attribute__((packed)) t_icmp; // メモリレイアウトの最適化を無効化
 
 void generate_packet_data(void *packet, size_t datalen);
-void set_timestamp(void *packet, size_t datalen);
+void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp);
 int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq);
 uint16_t calculate_checksum(void *data, int len);
 

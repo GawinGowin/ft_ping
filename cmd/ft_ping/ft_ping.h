@@ -9,6 +9,8 @@
 #define SOL_SOCKET IPPROTO_IP
 #endif
 
+#include "icmp.h"
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,6 +18,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -23,14 +26,14 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
-
-#include "icmp.h"
 
 #define IPV4_HEADER_SIZE 20
 
-typedef struct ping_state {
+typedef struct ping_master {
   int sockfd;
   int datalen;
   int ttl;
@@ -44,20 +47,31 @@ typedef struct ping_state {
   size_t rcvbuf;
 
   char *hostname;
+  int interval;
   unsigned int opt_verbose : 1;
-} t_ping_state;
+} t_ping_master;
+
+extern volatile int g_is_exiting;
 
 /* UseCases */
-int initialize_usecase(t_ping_state *state, char **argv);
-int parse_arg_usecase(int *argc, char ***argv, t_ping_state *state);
-int send_ping_usecase(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
+int initialize_usecase(t_ping_master *state, char **argv);
+int parse_arg_usecase(int *argc, char ***argv, t_ping_master *state);
 void show_usage_usecase(void);
+int send_ping_usecase(
+    int sockfd,
+    struct sockaddr_in *whereto,
+    void *packet,
+    size_t packet_size,
+    int datalen,
+    uint16_t seq,
+    struct timeval *timestamp);
 void cleanup_usecase(int status, void *state);
 
 /* Infra */
 int is_ipv6_address(const char *addr);
 int create_socket_with_fallback(void);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
+int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
 
 /* utils */
 long parse_long(
