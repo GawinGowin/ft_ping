@@ -65,7 +65,7 @@ static void set_socket_buff(t_ping_master *master) {
 
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "hvt:Q:c:S:s:l:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "hvt:Q:c:S:s:l:W:")) != EOF) {
     switch (ch) {
     case 'v':
       master->opt_verbose = 1;
@@ -87,6 +87,9 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
       break;
     case 'l':
       master->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
+      break;
+    case 'W':
+      master->timeout = parse_long(optarg, "invalid timeout", 0, 60, error) * 1000; /* Convert to milliseconds */
       break;
     default:
       return (2);
@@ -127,6 +130,7 @@ void show_usage_usecase(void) {
       "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
       "  -t <ttl>           define time to live\n"
       "  -v                 verbose output\n"
+      "  -W <timeout>       time to wait for response\n"
       "\n"
       "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
   fprintf(stderr, usage_msg, program_invocation_short_name);

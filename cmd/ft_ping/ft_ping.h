@@ -33,6 +33,20 @@
 
 #define IPV4_HEADER_SIZE 20
 
+typedef struct s_ping_stats {
+  long sent;              /* packets sent */
+  long received;          /* packets received */
+  long errors;            /* error packets received */
+  
+  /* RTT statistics in milliseconds */
+  double rtt_min;         /* minimum round trip time */
+  double rtt_max;         /* maximum round trip time */
+  double rtt_sum;         /* sum of all round trip times */
+  double rtt_sum_sq;      /* sum of squares of all round trip times */
+  
+  int timeout_count;      /* number of timeouts */
+} t_ping_stats;
+
 typedef struct ping_master {
   int sockfd;
   int datalen;
@@ -42,6 +56,7 @@ typedef struct ping_master {
 
   long npackets;
   int interval;
+  int timeout;            /* timeout in milliseconds */
 
   struct sockaddr_in whereto;
   size_t sndbuf;
@@ -49,6 +64,9 @@ typedef struct ping_master {
 
   char *hostname;
   unsigned int opt_verbose : 1;
+  
+  t_ping_stats stats;     /* statistics for ping */
+  uint16_t pid;           /* process id to use as identifier */
 } t_ping_master;
 
 extern volatile int g_is_exiting;
@@ -72,6 +90,7 @@ int is_ipv6_address(const char *addr);
 int create_socket_with_fallback(void);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
+int receive_packet(t_ping_master *master, void *packet, size_t packet_size);
 
 /* utils */
 long parse_long(
