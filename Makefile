@@ -8,6 +8,8 @@ SOURCE += cmd/ft_ping/ft_ping.c
 SOURCE += cmd/ft_ping/infra.c
 SOURCE += cmd/ft_ping/usecases.c
 SOURCE += cmd/ft_ping/utils.c
+SOURCE += cmd/ft_ping/icmp.c
+SOURCE += 
 
 HEADER =
 HEADER += cmd/ft_ping/ft_ping.h

@@ -45,3 +45,11 @@ void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   memcpy(addr, addr_in, sizeof(struct sockaddr_in));
   freeaddrinfo(result);
 }
+
+int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto) {
+  int cc = sendto(sockfd, packet, packet_size, 0, (struct sockaddr *)whereto, sizeof(*whereto));
+  if (cc < 0) {
+    return -1;
+  }
+  return cc;
+}

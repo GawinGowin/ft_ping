@@ -1,19 +1,36 @@
 #include "icmp.h"
 
-static uint16_t culculateChecksum(void *data, int len);
+void generate_packet_data(void *packet, size_t datalen) {
+  if (packet == NULL || datalen <= 0) {
+    return;
+  }
+  unsigned char *data = GET_PACKET_DATA(packet);
+  for (size_t i = 0; i < datalen; i++) {
+    data[i] = (unsigned char)((size_t)i % UCHAR_MAX);
+  }
+  return;
+}
 
-int createEchoRequestPacket(t_icmp *packet, uint16_t id, uint16_t seq) {
-  packet->type = 8;
-  packet->code = 0;
-  packet->id = id;
-  packet->seq = seq; // 1, 2, 3, ...
+void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp) {
+  if (datalen < sizeof(*timestamp)) {
+    return;
+  }
+  t_icmp *icpm = (t_icmp *)packet;
+  memcpy(&icpm->timestamp, timestamp, sizeof(*timestamp));
+  return;
+}
 
-  packet->checksum = 0;
-  packet->checksum = culculateChecksum((void *)packet, sizeof(t_icmp));
+int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq) {
+  t_icmp *icmp = (t_icmp *)packet;
+
+  icmp->type = ICMP_ECHO;
+  icmp->code = 0;
+  icmp->id = htons(id);
+  icmp->seq = htons(seq);
   return 0;
 }
 
-static uint16_t culculateChecksum(void *data, int len) {
+uint16_t calculate_checksum(void *data, int len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
 
