@@ -44,7 +44,7 @@ static void main_loop(t_ping_master *master) {
   printf(
       "PING %s (%s) %d(%zu) bytes of data.\n", master->hostname,
       inet_ntoa(master->whereto.sin_addr), master->datalen,
-      packet_size + 20); // 20: IP headerのサイズ
+      packet_size + IPV4_HEADER_SIZE);
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
