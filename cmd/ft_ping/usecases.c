@@ -115,17 +115,20 @@ int send_ping_usecase(
 }
 
 void show_usage_usecase(void) {
-  char usage_msg[] = {"\nUsage:\n  %s [options] <destination>\n\n"
-                      "Options:\n"
-                      "  <destination>      dns name or ip address\n"
-                      "  -c <count>         stop after <count> replies\n"
-                      "  -h                 display this help and exit\n"
-                      "  -Q <tclass>        use quality of service <tclass> bits\n"
-                      "  -s <size>          use <size> as number of data bytes to be sent\n"
-                      "  -t <ttl>           define time to live\n"
-                      "  -v                 verbose output\n"
-                      "\n"
-                      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
+  char usage_msg[] = {
+      "\nUsage:\n  %s [options] <destination>\n\n"
+      "Options:\n"
+      "  <destination>      dns name or ip address\n"
+      "  -c <count>         stop after <count> replies\n"
+      "  -h                 display this help and exit\n"
+      "  -l <preload>       send <preload> number of packages while waiting replies\n"
+      "  -Q <tclass>        use quality of service <tclass> bits\n"
+      "  -s <size>          use <size> as number of data bytes to be sent\n"
+      "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
+      "  -t <ttl>           define time to live\n"
+      "  -v                 verbose output\n"
+      "\n"
+      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
   fprintf(stderr, usage_msg, program_invocation_short_name);
 }
 

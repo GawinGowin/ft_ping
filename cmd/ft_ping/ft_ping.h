@@ -41,13 +41,13 @@ typedef struct ping_master {
   int preload;
 
   long npackets;
-  struct sockaddr_in whereto;
+  int interval;
 
+  struct sockaddr_in whereto;
   size_t sndbuf;
   size_t rcvbuf;
 
   char *hostname;
-  int interval;
   unsigned int opt_verbose : 1;
 } t_ping_master;
 
