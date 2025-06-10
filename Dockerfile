@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	lcov \
 	libcap-dev \
 	meson \
-	xsltproc
+	nodejs \
+	npm \
+	xsltproc ; \
+  npm install -g @anthropic-ai/claude-code ; \
 
 # install google test
 RUN set -x; \
@@ -37,8 +40,5 @@ RUN set -x; \
 	gpg \
 	build-essential \
 	lcov \
-	nodejs \
-	npm \
 	cmake ; \
-	npm install -g @anthropic-ai/claude-code ; \
 	rm -rf /var/lib/apt/lists/*
