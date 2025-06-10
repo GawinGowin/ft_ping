@@ -25,7 +25,7 @@ void error(int status, const char *format, ...) {
   va_start(ap, format);
   vsnprintf(last_error_message, sizeof(last_error_message), format, ap);
   va_end(ap);
-  fprintf(stderr, "%s: %s (%d)", "test_ft_ping", last_error_message, status);
+  fprintf(stderr, "%s: %s (%d)\n", "test_ft_ping", last_error_message, status);
   if (status && test_err_jmp_buf_set) {
     longjmp(test_err_jmp_buf, status);
   }
