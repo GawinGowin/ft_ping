@@ -191,7 +191,7 @@ static void configure_state(t_ping_master *master) {
   /* Basic settings */
   master->sockfd = -1;
   master->datalen = 56;
-  master->ttl = 64;
+  master->ttl = 60;
   master->tos = 0;
   master->preload = 1;
   master->sndbuf = 0;

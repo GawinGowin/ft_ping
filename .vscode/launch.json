@@ -20,7 +20,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/ft_ping_debug",
       "args": [
-        "localhost"
+        "192.168.2.100"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -36,7 +36,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/reference/iputils/builddir/ping/ping",
       "args": [
-        "localhost"
+        "192.168.2.100"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

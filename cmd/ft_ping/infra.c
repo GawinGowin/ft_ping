@@ -15,13 +15,6 @@ int create_socket_with_fallback(void) {
   if (sockfd >= 0) {
     return sockfd;
   }
-  // SOCK_DGRAM で作る
-  if (errno == EPERM || errno == EACCES) {
-    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-    if (sockfd >= 0) {
-      return sockfd;
-    }
-  }
   return -1;
 }
 
