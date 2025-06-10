@@ -26,7 +26,7 @@
 		}
 	],
 	"postCreateCommand": "echo \"source /usr/share/bash-completion/completions/git\" >> ~/.bashrc",
-	"postStartCommand": "git config --global alias.al 'config --get-regexp ^alias\\.' && git config --global alias.f 'fetch --all --prune' && git config --global alias.pf 'push --force-with-lease'",
+	"postStartCommand": "git config --global alias.al 'config --get-regexp ^alias\\.' && git config --global alias.f 'fetch --all --prune' && git config --global alias.pf 'push --force-with-lease' && mkdir -p ~/.claude/commands && echo \"$ARGUMENTS\n\n直前の内容(知見、ノウハウ)を統括的にドキュメントとして./docs/に保存してください。必ず、新規ファイルとして作成されるようにしてください。\n既存のドキュメントを上書きしてはいけません。ディレクトリがないのであれば新規作成してください。ドキュメントのタイトルは日本語にしてください。\" > ~/.claude/commands/record.md",
 	"remoteUser": "root",
 	"customizations": {
 		"vscode": {

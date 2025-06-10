@@ -3,14 +3,14 @@ FROM mcr.microsoft.com/devcontainers/cpp:1.2.7-debian12 AS dev
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-clang-format \
-clang-tidy \
-netcat-openbsd \
-iputils-ping \
-lcov \
-libcap-dev \
-meson \
-xsltproc
+	clang-format \
+	clang-tidy \
+	netcat-openbsd \
+	iputils-ping \
+	lcov \
+	libcap-dev \
+	meson \
+	xsltproc
 
 # install google test
 RUN set -x; \
@@ -31,11 +31,14 @@ COPY --from=dev /usr/local/lib/ /usr/local/lib/
 
 RUN set -x; \
 	apt-get update && apt-get install -y --no-install-recommends \
-  git \
-  ca-certificates \
-  curl \
-  gpg \
+	git \
+	ca-certificates \
+	curl \
+	gpg \
 	build-essential \
 	lcov \
+	nodejs \
+	npm \
 	cmake ; \
+	npm install -g @anthropic-ai/claude-code ; \
 	rm -rf /var/lib/apt/lists/*
