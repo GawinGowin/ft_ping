@@ -8,15 +8,22 @@
 		"target": "dev"
 	},
 	"runArgs": [
-		"-it", "--rm",
-		"--name", "ft_ping",
-    "--privileged",
-    "--network", "host"
+		"-it",
+		"--rm",
+		"--name",
+		"ft_ping",
+		"--privileged",
+		"--network",
+		"host"
 	],
 	"workspaceFolder": "/workspace",
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
 	"mounts": [
-		{ "source": "reference", "target": "/workspace/reference", "type": "volume" }
+		{
+			"source": "reference",
+			"target": "/workspace/reference",
+			"type": "volume"
+		}
 	],
 	"postCreateCommand": "echo \"source /usr/share/bash-completion/completions/git\" >> ~/.bashrc",
 	"postStartCommand": "git config --global alias.al 'config --get-regexp ^alias\\.' && git config --global alias.f 'fetch --all --prune' && git config --global alias.pf 'push --force-with-lease'",
@@ -48,7 +55,7 @@
 				"github.copilot.chat.localeOverride": "ja",
 				"github.copilot.enable": {
 					"markdown": true
-				  },
+				},
 				"C/C++ Include Guard.Macro Type": "Filename",
 				"C/C++ Include Guard.Path Depth": 5,
 				"C/C++ Include Guard.Path Skip": 0,
