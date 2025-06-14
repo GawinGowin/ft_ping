@@ -1,5 +1,5 @@
 #include <cstring>
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <stdexcept>
 #include <string>
 
