@@ -1,4 +1,5 @@
 .vscode/settings.json
+.vscode/launch.json
 *.pdf
 
 *.pcapng
@@ -224,3 +225,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 CLAUDE.md
+.claude/
+.claude.json

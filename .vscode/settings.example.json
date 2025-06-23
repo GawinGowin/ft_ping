@@ -1,7 +1,7 @@
 {
-	"editor.tabSize": 2,
-	"editor.detectIndentation": false,
-	"editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
   "cmake.ctest.allowParallelJobs": true,
   "testMate.cpp.debug.breakOnFailure": true,
   "cmake.configureOnEdit": false,
@@ -20,5 +20,8 @@
     ".hpp",
     ".h++",
     ".hh"
-  ]
+  ],
+  "terminal.integrated.env.linux": {},
+  "terminal.integrated.env.osx": {},
+  "terminal.integrated.env.windows": {}
 }
