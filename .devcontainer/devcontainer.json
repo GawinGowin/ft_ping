@@ -35,6 +35,7 @@
       "type": "bind"
     }
   ],
+  "initializeCommand": "touch ${localWorkspaceFolder}/.claude.json || if not exist ${localWorkspaceFolder}/.claude.json type nul > ${localWorkspaceFolder}/.claude.json",
   "postCreateCommand": "echo \"source /usr/share/bash-completion/completions/git\" >> ~/.bashrc",
   "postStartCommand": "git config --global alias.al 'config --get-regexp ^alias\\.' && git config --global alias.f 'fetch --all --prune' && git config --global alias.pf 'push --force-with-lease'",
   "remoteUser": "root",
