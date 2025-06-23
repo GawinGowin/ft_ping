@@ -1,6 +1,27 @@
 #include "ft_ping.h"
 
 static void set_socket_buff(t_ping_master *master);
+static int __schedule_exit(t_ping_master *master, int next);
+
+void show_usage_usecase(void) {
+  char usage_msg[] = {
+      "\nUsage:\n  %s [options] <destination>\n\n"
+      "Options:\n"
+      "  <destination>      dns name or ip address\n"
+      "  -A                 use adaptive ping\n"
+      "  -c <count>         stop after <count> replies\n"
+      "  -h                 display this help and exit\n"
+      "  -l <preload>       send <preload> number of packages while waiting replies\n"
+      "  -Q <tclass>        use quality of service <tclass> bits\n"
+      "  -s <size>          use <size> as number of data bytes to be sent\n"
+      "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
+      "  -t <ttl>           define time to live\n"
+      "  -v                 verbose output\n"
+      "  -w <deadline>      reply wait <deadline> in seconds\n"
+      "\n"
+      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
+  fprintf(stderr, usage_msg, program_invocation_short_name);
+}
 
 int initialize_usecase(t_ping_master *master, char **argv) {
   char *target = *argv;
@@ -65,8 +86,11 @@ static void set_socket_buff(t_ping_master *master) {
 
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "hvt:Q:c:S:s:l:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "Ahvt:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
+    case 'A':
+      master->opt_adaptive = 1;
+      break;
     case 'v':
       master->opt_verbose = 1;
       break;
@@ -87,6 +111,9 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
       break;
     case 'l':
       master->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
+      break;
+    case 'w':
+      master->deadline = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
     default:
       return (2);
@@ -114,22 +141,64 @@ int send_ping_usecase(
   return send_packet(packet, packet_size, sockfd, whereto);
 }
 
-void show_usage_usecase(void) {
-  char usage_msg[] = {
-      "\nUsage:\n  %s [options] <destination>\n\n"
-      "Options:\n"
-      "  <destination>      dns name or ip address\n"
-      "  -c <count>         stop after <count> replies\n"
-      "  -h                 display this help and exit\n"
-      "  -l <preload>       send <preload> number of packages while waiting replies\n"
-      "  -Q <tclass>        use quality of service <tclass> bits\n"
-      "  -s <size>          use <size> as number of data bytes to be sent\n"
-      "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
-      "  -t <ttl>           define time to live\n"
-      "  -v                 verbose output\n"
-      "\n"
-      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
-  fprintf(stderr, usage_msg, program_invocation_short_name);
+int schedule_exit(t_ping_master *master, int next) {
+  if (master->npackets && master->ntransmitted >= master->npackets && !master->deadline)
+    next = __schedule_exit(master, next);
+  return next;
+}
+
+/**
+ * @brief SIGALRM信号による適応的ping終了処理のスケジューリング
+ * 
+ * 指定されたパケット数の送信完了後、最後の応答パケットを受信するための
+ * 適切な待機時間を計算し、SIGALRMタイマーを設定する。
+ * 静的変数により複数回呼び出し時の重複実行を防止する。
+ * 
+ * ## 待機時間決定ロジック
+ * 
+ * ### ケース1: 応答パケット受信済み (`master->nreceived > 0`)
+ * - 基本待機時間 = `2 × 最大RTT (master->tmax)`
+ * - 最小保証時間 = `1000 × ping間隔 (master->interval)`
+ * - より長い方を採用してネットワーク遅延に対応
+ * 
+ * ### ケース2: 応答パケット未受信 (`master->nreceived == 0`)
+ * - 待機時間 = `lingertime × 1000` (マイクロ秒単位)
+ * - デフォルトの待機戦略を適用
+ * 
+ * ## タイマー制御メカニズム
+ * - `setitimer(ITIMER_REAL, ...)` による実時間ベースのタイムアウト
+ * - SIGALRMハンドラー経由でのグレースフル終了処理
+ * - 静的変数 `waittime` による初回実行のみの制御
+ * 
+ * @param master ping処理のマスター構造体（統計情報とネットワーク状態を含む）
+ * @param next 次回パケット送信までの時間（秒単位）
+ * @return 調整された次回送信時間（秒単位）、または元の値
+ * 
+ * @note この関数は初回呼び出し時のみ実際の処理を実行し、
+ *       2回目以降は早期リターンによる効率化を図る
+ * @note 参考実装: iputils ping の __schedule_exit() 関数
+ */
+static int __schedule_exit(t_ping_master *master, int next) {
+  static unsigned long waittime;
+  struct itimerval it;
+
+  if (waittime)
+    return next;
+  if (master->nreceived) {
+    waittime = 2 * master->tmax;
+    if (waittime < 1000 * (unsigned long)master->interval)
+      waittime = 1000 * master->interval;
+  } else {
+    waittime = master->lingertime * 1000;
+  }
+  if (next < 0 || (unsigned long)next < waittime / 1000)
+    next = waittime / 1000;
+  it.it_interval.tv_sec = 0;
+  it.it_interval.tv_usec = 0;
+  it.it_value.tv_sec = waittime / 1000000;
+  it.it_value.tv_usec = waittime % 1000000;
+  setitimer(ITIMER_REAL, &it, NULL);
+  return next;
 }
 
 void cleanup_usecase(int status, void *master) {

@@ -2,13 +2,20 @@
 #include "icmp.h"
 
 static void main_loop(t_ping_master *master);
-static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_t packet_size);
+static int pinger(t_ping_master *master, void *packet, size_t packet_size);
 static void configure_state(t_ping_master *master);
+static void alarm_handler(int signo);
 
 volatile int g_is_exiting = 0;
 
 static void signal_handler(int signo) {
   if (signo == SIGINT) {
+    g_is_exiting = 1;
+  }
+}
+
+static void alarm_handler(int signo) {
+  if (signo == SIGALRM) {
     g_is_exiting = 1;
   }
 }
@@ -21,7 +28,8 @@ int entrypoint(int argc, char **argv) {
     error(1, "on_exit failed\n");
     return (1);
   }
-  if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR) {
+  if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR ||
+      signal(SIGALRM, alarm_handler) == SIG_ERR) {
     error(1, "signal failed\n");
   }
   int err;
@@ -43,51 +51,44 @@ static void main_loop(t_ping_master *master) {
   size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master->datalen;
   printf(
       "PING %s (%s) %d(%zu) bytes of data.\n", master->hostname,
-      inet_ntoa(master->whereto.sin_addr), master->datalen,
-      packet_size + 20); // 20: IP headerのサイズ
+      inet_ntoa(master->whereto.sin_addr), master->datalen, packet_size + IPV4_HEADER_SIZE);
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
   }
 
-  long ntransmitted = 0;
-  // long nreceived = 0;
+  int next;
+  do {
+    next = pinger(master, packet, packet_size);
+    next = schedule_exit(master, next);
+  } while (next <= 0 && !g_is_exiting);
 
-  // int sock_flags = fcntl(master->sockfd, F_GETFL, 0);
-  // fcntl(master->sockfd, F_SETFL, sock_flags | O_NONBLOCK);
+  if (!g_is_exiting && next > 0) {
+    struct pollfd pfd;
+    pfd.fd = master->sockfd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
 
-  // struct pollfd pfd;
-  // pfd.fd = master->sockfd;
-  // pfd.events = POLLIN;
+    int ret = poll(&pfd, 1, next);
+    if (ret > 0 && (pfd.revents & POLLIN)) {
 
-  while (!g_is_exiting && (master->npackets <= 0 || ntransmitted < master->npackets)) {
-    int next_ping_ms = pinger(master, &ntransmitted, packet, packet_size);
-    if (next_ping_ms < 0) {
-      fprintf(stderr, "pinger error: %s\n", strerror(errno));
-      continue;
     }
-    // pfd.revents = 0;
-    // int ret = poll(&pfd, 1, next_ping_ms);
-    // if (ret < 0) {
-    //   if (errno == EINTR)
-    //     continue;
-    //   fprintf(stderr, "poll error: %s\n", strerror(errno));
-    //   break;
-    // }
-    // if (ret > 0 && (pfd.revents & POLLIN)) {
-    //   while (receive_packet(state, packet, packet_size) > 0) {
-    //   }
-    // }
   }
+
   free(packet);
 }
 
-static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_t packet_size) {
+static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   static struct timeval prev = {0, 0};
   static struct timeval now;
   long time_delta;
 
-  uint16_t seq = (uint16_t)(*ntransmitted % UINT16_MAX);
+  // 送信完了チェック（-cオプション指定時）
+  if (master->npackets > 0 && master->ntransmitted >= master->npackets) {
+    return 0; // 送信完了
+  }
+
+  uint16_t seq = (uint16_t)(master->ntransmitted % UINT16_MAX);
   if (prev.tv_sec == 0 && prev.tv_usec == 0) {
     gettimeofday(&prev, NULL);
     int cc = send_ping_usecase(
@@ -96,7 +97,7 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
       // Note: 本物のpingでは送信間隔の調整など複雑なエラーハンドリングが行われていた
       return -1;
     }
-    (*ntransmitted)++;
+    master->ntransmitted++;
     return master->interval;
   }
   gettimeofday(&now, NULL);
@@ -110,7 +111,7 @@ static int pinger(t_ping_master *master, long *ntransmitted, void *packet, size_
   if (cc < 0) {
     return -1;
   }
-  (*ntransmitted)++;
+  master->ntransmitted++;
   return master->interval;
 }
 
@@ -124,7 +125,13 @@ static void configure_state(t_ping_master *master) {
   master->sndbuf = 0;
   master->interval = 1000;
   master->npackets = -1;
+  master->opt_adaptive = 0;
   master->opt_verbose = 0;
+  master->deadline = 0;
+  master->ntransmitted = 0;
+  master->nreceived = 0;
+  master->tmax = 0;
+  master->lingertime = 10;
 }
 
 #ifndef TESTING

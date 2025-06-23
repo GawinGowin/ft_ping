@@ -46,9 +46,15 @@ typedef struct ping_master {
   struct sockaddr_in whereto;
   size_t sndbuf;
   size_t rcvbuf;
+  int deadline;
 
+  int ntransmitted;
+  int nreceived;
+  int tmax;
+  int lingertime;
   char *hostname;
   unsigned int opt_verbose : 1;
+  unsigned int opt_adaptive : 1;
 } t_ping_master;
 
 extern volatile int g_is_exiting;
@@ -65,6 +71,7 @@ int send_ping_usecase(
     int datalen,
     uint16_t seq,
     struct timeval *timestamp);
+int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
 
 /* Infra */
