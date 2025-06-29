@@ -19,6 +19,7 @@
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -30,11 +31,10 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <sched.h>
 
 #define IPV4_HEADER_SIZE 20
-#define MIN_INTERVAL_MS	10
-#define SCHINT(a)	(((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
+#define MIN_INTERVAL_MS 10
+#define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
 
 #ifndef HZ
 #define HZ sysconf(_SC_CLK_TCK)
@@ -81,6 +81,8 @@ int send_ping_usecase(
     struct timeval *timestamp);
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
+int receive_replies_usecase(
+    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error);
 
 /* Infra */
 int is_ipv6_address(const char *addr);
