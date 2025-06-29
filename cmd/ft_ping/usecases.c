@@ -37,6 +37,7 @@ int initialize_usecase(t_ping_master *master, char **argv) {
     error(1, "Failed to create socket: %s\n", strerror(errno));
   }
   set_socket_buff(master);
+  configure_socket_timeouts(master->sockfd, master->interval, &master->opt_flood_poll);
   if (setsockopt(master->sockfd, IPPROTO_IP, IP_TTL, &master->ttl, sizeof(master->ttl)) < 0) {
     error(1, "setsockopt IP_TTL failed: %s\n", strerror(errno));
   }

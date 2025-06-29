@@ -30,8 +30,15 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <sched.h>
 
 #define IPV4_HEADER_SIZE 20
+#define MIN_INTERVAL_MS	10
+#define SCHINT(a)	(((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
+
+#ifndef HZ
+#define HZ sysconf(_SC_CLK_TCK)
+#endif
 
 typedef struct ping_master {
   int sockfd;
@@ -55,6 +62,7 @@ typedef struct ping_master {
   char *hostname;
   unsigned int opt_verbose : 1;
   unsigned int opt_adaptive : 1;
+  int opt_flood_poll;
 } t_ping_master;
 
 extern volatile int g_is_exiting;
@@ -79,6 +87,7 @@ int is_ipv6_address(const char *addr);
 int create_socket_with_fallback(void);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
+void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll);
 
 /* utils */
 long parse_long(
