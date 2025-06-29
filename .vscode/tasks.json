@@ -1,5 +1,5 @@
 {
-  "tasks": [    
+  "tasks": [
     {
       "type": "cppbuild",
       "label": "ft_ping_make",
@@ -25,13 +25,22 @@
     },
     {
       "type": "cppbuild",
-      "label": "ping_init",
-      "command": "bash",
+      "label": "poc/cmsghdr_init",
+      "command": "make",
       "args": [
-        "-c",
-        "cd ${workspaceFolder}/reference/iputils && ./configure && meson build"
-      ]
-    }
+        "-C",
+        "${workspaceFolder}/poc/cmsghdr"
+      ],
+    },
+    {
+      "type": "cppbuild",
+      "label": "poc/setitimer_init",
+      "command": "make",
+      "args": [
+        "-C",
+        "${workspaceFolder}/poc/setitimer"
+      ],
+    },
   ],
   "version": "2.0.0"
 }
