@@ -45,6 +45,34 @@
       "preLaunchTask": "ping_make",
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb"
+    },
+    {
+      "name": "poc/cmsghdr",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/cmsghdr_example.out",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "poc/cmsghdr_init",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    {
+      "name": "poc/setitimer",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/setitimer_example.out",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "poc/setitimer_init",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
     }
   ]
 }

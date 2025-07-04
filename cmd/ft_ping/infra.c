@@ -53,3 +53,30 @@ int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in
   }
   return cc;
 }
+
+/**
+ * @brief pingソケットのタイムアウトを設定する
+ *
+ * この関数は、指定された間隔に基づいてpingソケットのタイムアウト値を設定します。
+ * ping操作の適切な動作を保証するために、送信と受信の両方のタイムアウトを設定します。
+ * フラッドモードが有効な場合、それに応じてポーリング機構を調整します。
+ *
+ * @param sockfd 設定するソケットファイルディスクリプタ
+ * @param interval pingパケット間の時間間隔（ミリ秒）
+ * @param opt_flood_poll フラッドポーリングオプションフラグへのポインタ、フラッドモードがアクティブな場合更新される
+ */
+void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll) {
+  struct timeval tv;
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  if (interval < 1000) {
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000 * SCHINT(interval);
+  }
+  setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv));
+  tv.tv_sec = SCHINT(interval) / 1000;
+  tv.tv_usec = 1000 * (SCHINT(interval) % 1000);
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv))) {
+    *opt_flood_poll = 1;
+  }
+}

@@ -1,7 +1,7 @@
 #include "ft_ping.h"
 #include "icmp.h"
 
-static void main_loop(t_ping_master *master);
+static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
 static void configure_state(t_ping_master *master);
 static void alarm_handler(int signo);
@@ -43,39 +43,63 @@ int entrypoint(int argc, char **argv) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&master, argv);
-  main_loop(&master);
-  return (0);
-}
-
-static void main_loop(t_ping_master *master) {
-  size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master->datalen;
+  size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master.datalen;
   printf(
-      "PING %s (%s) %d(%zu) bytes of data.\n", master->hostname,
-      inet_ntoa(master->whereto.sin_addr), master->datalen, packet_size + IPV4_HEADER_SIZE);
+      "PING %s (%s) %d(%zu) bytes of data.\n", master.hostname, inet_ntoa(master.whereto.sin_addr),
+      master.datalen, packet_size + IPV4_HEADER_SIZE);
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
   }
-
-  int next;
-  do {
-    next = pinger(master, packet, packet_size);
-    next = schedule_exit(master, next);
-  } while (next <= 0 && !g_is_exiting);
-
-  if (!g_is_exiting && next > 0) {
-    struct pollfd pfd;
-    pfd.fd = master->sockfd;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
-
-    int ret = poll(&pfd, 1, next);
-    if (ret > 0 && (pfd.revents & POLLIN)) {
-
-    }
-  }
-
+  bzero(packet, packet_size);
+  main_loop(&master, packet, packet_size);
   free(packet);
+  return (0);
+}
+
+static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size) {
+  int next;
+  int polling;
+  int recv_error;
+  void *recved_packet = malloc(packet_size);
+  if (!recved_packet) {
+    error(1, "malloc failed failed\n");
+  }
+  bzero(recved_packet, packet_size);
+  while (!g_is_exiting) {
+    do {
+      next = pinger(master, packet_ptr, packet_size);
+      next = schedule_exit(master, next);
+    } while (next <= 0 && !g_is_exiting);
+    polling = 0;
+    recv_error = 0;
+    if (master->opt_adaptive || master->opt_flood_poll || next < SCHINT(master->interval)) {
+      int recv_expected = master->ntransmitted - master->nreceived;
+
+      if (1000 % HZ == 0 ? next <= 1000 / HZ : (next < INT_MAX / HZ && next * HZ <= 1000)) {
+        if (recv_expected) {
+          next = MIN_INTERVAL_MS;
+        } else {
+          next = 0;
+          polling = MSG_DONTWAIT;
+          sched_yield();
+        }
+      }
+      if (!polling && (master->opt_adaptive || master->opt_flood_poll || master->interval)) {
+        struct pollfd pset;
+        pset.fd = master->sockfd;
+        pset.events = POLLIN;
+        pset.revents = 0;
+        if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
+          continue;
+        polling = MSG_DONTWAIT;
+        recv_error = pset.revents & POLLERR;
+      }
+    }
+    receive_replies_usecase(master, recved_packet, packet_size, &polling, &recv_error);
+  }
+  free(recved_packet);
+  g_is_exiting = 0;
 }
 
 static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
@@ -94,7 +118,6 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
     int cc = send_ping_usecase(
         master->sockfd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
     if (cc < 0) {
-      // Note: 本物のpingでは送信間隔の調整など複雑なエラーハンドリングが行われていた
       return -1;
     }
     master->ntransmitted++;
@@ -124,9 +147,10 @@ static void configure_state(t_ping_master *master) {
   master->preload = 1;
   master->sndbuf = 0;
   master->interval = 1000;
-  master->npackets = -1;
+  master->npackets = 0;
   master->opt_adaptive = 0;
   master->opt_verbose = 0;
+  master->opt_flood_poll = 0;
   master->deadline = 0;
   master->ntransmitted = 0;
   master->nreceived = 0;
