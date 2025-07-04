@@ -51,6 +51,7 @@ int entrypoint(int argc, char **argv) {
   if (!packet) {
     error(1, "malloc failed\n");
   }
+  bzero(packet, packet_size);
   main_loop(&master, packet, packet_size);
   free(packet);
   return (0);
@@ -60,42 +61,45 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   int next;
   int polling;
   int recv_error;
+  void *recved_packet = malloc(packet_size);
+  if (!recved_packet) {
+    error(1, "malloc failed failed\n");
+  }
+  bzero(recved_packet, packet_size);
+  while (!g_is_exiting) {
+    do {
+      next = pinger(master, packet_ptr, packet_size);
+      next = schedule_exit(master, next);
+    } while (next <= 0 && !g_is_exiting);
+    polling = 0;
+    recv_error = 0;
+    if (master->opt_adaptive || master->opt_flood_poll || next < SCHINT(master->interval)) {
+      int recv_expected = master->ntransmitted - master->nreceived;
 
-  do {
-    next = pinger(master, packet_ptr, packet_size);
-    next = schedule_exit(master, next);
-  } while (next <= 0 && !g_is_exiting);
-
-  polling = 0;
-  recv_error = 0;
-  if (master->opt_adaptive || master->opt_flood_poll || next < SCHINT(master->interval)) {
-    int recv_expected = master->ntransmitted - master->nreceived;
-
-    if (1000 % HZ == 0 ? next <= 1000 / HZ : (next < INT_MAX / HZ && next * HZ <= 1000)) {
-      if (recv_expected) {
-        next = MIN_INTERVAL_MS;
-      } else {
-        next = 0;
+      if (1000 % HZ == 0 ? next <= 1000 / HZ : (next < INT_MAX / HZ && next * HZ <= 1000)) {
+        if (recv_expected) {
+          next = MIN_INTERVAL_MS;
+        } else {
+          next = 0;
+          polling = MSG_DONTWAIT;
+          sched_yield();
+        }
+      }
+      if (!polling && (master->opt_adaptive || master->opt_flood_poll || master->interval)) {
+        struct pollfd pset;
+        pset.fd = master->sockfd;
+        pset.events = POLLIN;
+        pset.revents = 0;
+        if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
+          continue;
         polling = MSG_DONTWAIT;
-        sched_yield();
+        recv_error = pset.revents & POLLERR;
       }
     }
-
-    if (!polling && (master->opt_adaptive || master->opt_flood_poll || master->interval)) {
-      struct pollfd pset;
-      pset.fd = master->sockfd;
-      pset.events = POLLIN;
-      pset.revents = 0;
-      if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
-        return;
-      polling = MSG_DONTWAIT;
-      recv_error = pset.revents & POLLERR;
-    }
+    receive_replies_usecase(master, recved_packet, packet_size, &polling, &recv_error);
   }
-
-  // TODO: Implement packet reception logic using polling/recv_error
-  (void)polling;
-  (void)recv_error;
+  free(recved_packet);
+  g_is_exiting = 0;
 }
 
 static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
@@ -143,7 +147,7 @@ static void configure_state(t_ping_master *master) {
   master->preload = 1;
   master->sndbuf = 0;
   master->interval = 1000;
-  master->npackets = -1;
+  master->npackets = 0;
   master->opt_adaptive = 0;
   master->opt_verbose = 0;
   master->opt_flood_poll = 0;

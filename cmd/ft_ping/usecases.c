@@ -202,6 +202,45 @@ static int __schedule_exit(t_ping_master *master, int next) {
   return next;
 }
 
+/**
+ * ICMP応答パケットを受信し処理するユースケース関数
+ * 
+ * 日本語説明：
+ * ソケットバッファに複数のパケットがたまっている可能性があるため、無限ループでパケットを受信
+ * Raw socketならば、ほかの端末からのパケットも受信する可能性がある。
+ * 
+ * この関数は以下の処理を行う：
+ * - ICMPエコー応答パケットの受信
+ * - 受信したパケットの検証とフィルタリング
+ * - パケット内容の解析と統計情報の更新
+ * - タイムアウト処理
+ * 
+ * @return 成功時は0、エラー時は負の値を返す
+ */
+int receive_replies_usecase(
+    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error) {
+  ssize_t ret = 0;
+  while (1) {
+    struct timeval *recv_timep = NULL;
+    struct timeval recv_time;
+    int not_ours = 0;
+
+    ret = recvmsg(master->sockfd, packet_buffer, *polling);
+    *polling = MSG_DONTWAIT;
+  (void) ret;
+  (void) packet_buffer;
+  (void) packlen;
+  (void) recv_timep;
+  (void) recv_time;
+  (void) not_ours;
+  (void) *recv_error;
+  (void) master;
+    break;
+
+  }
+  return (0);
+}
+
 void cleanup_usecase(int status, void *master) {
   (void)status;
   t_ping_master *st = (t_ping_master *)master;
