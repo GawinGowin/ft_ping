@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <setjmp.h>
 
 #define IPV4_HEADER_SIZE 20
 #define MIN_INTERVAL_MS 10
@@ -39,6 +40,13 @@
 #ifndef HZ
 #define HZ sysconf(_SC_CLK_TCK)
 #endif
+
+typedef struct ping_state {
+  volatile int in_pr_addr; /* pr_addr() is executing */
+  jmp_buf pr_addr_jmp;
+} t_ping_state;
+
+extern t_ping_state *global_state;
 
 typedef struct ping_master {
   int sockfd;
@@ -68,6 +76,8 @@ typedef struct ping_master {
 extern volatile int g_is_exiting;
 
 /* UseCases */
+void configure_state_usecase(t_ping_master *master);
+void setup_signal_handlers_usecase(void);
 int initialize_usecase(t_ping_master *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *state);
 void show_usage_usecase(void);

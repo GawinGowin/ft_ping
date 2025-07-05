@@ -3,6 +3,36 @@
 static void set_socket_buff(t_ping_master *master);
 static int __schedule_exit(t_ping_master *master, int next);
 
+void configure_state_usecase(t_ping_master *master) {
+  master->sockfd = -1;
+  master->datalen = 56;
+  master->ttl = 64;
+  master->tos = 0;
+  master->preload = 1;
+  master->sndbuf = 0;
+  master->interval = 1000;
+  master->npackets = 0;
+  master->opt_adaptive = 0;
+  master->opt_verbose = 0;
+  master->opt_flood_poll = 0;
+  master->deadline = 0;
+  master->ntransmitted = 0;
+  master->nreceived = 0;
+  master->tmax = 0;
+  master->lingertime = 10;
+}
+
+static void signal_handler(int signo __attribute__((__unused__))) { g_is_exiting = 1; }
+
+static void alarm_handler(int signo __attribute__((__unused__))) { g_is_exiting = 1; }
+
+void setup_signal_handlers_usecase(void) {
+  if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR ||
+      signal(SIGALRM, alarm_handler) == SIG_ERR) {
+    error(1, "signal failed\n");
+  }
+}
+
 void show_usage_usecase(void) {
   char usage_msg[] = {
       "\nUsage:\n  %s [options] <destination>\n\n"
@@ -227,16 +257,15 @@ int receive_replies_usecase(
 
     ret = recvmsg(master->sockfd, packet_buffer, *polling);
     *polling = MSG_DONTWAIT;
-  (void) ret;
-  (void) packet_buffer;
-  (void) packlen;
-  (void) recv_timep;
-  (void) recv_time;
-  (void) not_ours;
-  (void) *recv_error;
-  (void) master;
+    (void)ret;
+    (void)packet_buffer;
+    (void)packlen;
+    (void)recv_timep;
+    (void)recv_time;
+    (void)not_ours;
+    (void)*recv_error;
+    (void)master;
     break;
-
   }
   return (0);
 }

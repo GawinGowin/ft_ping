@@ -3,35 +3,21 @@
 
 static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
-static void configure_state(t_ping_master *master);
-static void alarm_handler(int signo);
 
 volatile int g_is_exiting = 0;
 
-static void signal_handler(int signo) {
-  if (signo == SIGINT) {
-    g_is_exiting = 1;
-  }
-}
-
-static void alarm_handler(int signo) {
-  if (signo == SIGALRM) {
-    g_is_exiting = 1;
-  }
-}
+t_ping_state *global_state = NULL;
 
 int entrypoint(int argc, char **argv) {
   t_ping_master master;
-
-  configure_state(&master);
+  configure_state_usecase(&master);
+  t_ping_state state = {.in_pr_addr = 0, .pr_addr_jmp = {}};
+  global_state = &state;
   if (on_exit(cleanup_usecase, (void *)&master) != 0) {
     error(1, "on_exit failed\n");
     return (1);
   }
-  if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR ||
-      signal(SIGALRM, alarm_handler) == SIG_ERR) {
-    error(1, "signal failed\n");
-  }
+  setup_signal_handlers_usecase();
   int err;
   if ((err = parse_arg_usecase(&argc, &argv, &master)) != 0) {
     if (err == 2) {
@@ -136,26 +122,6 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   }
   master->ntransmitted++;
   return master->interval;
-}
-
-static void configure_state(t_ping_master *master) {
-  // temp values
-  master->sockfd = -1;
-  master->datalen = 56;
-  master->ttl = 64;
-  master->tos = 0;
-  master->preload = 1;
-  master->sndbuf = 0;
-  master->interval = 1000;
-  master->npackets = 0;
-  master->opt_adaptive = 0;
-  master->opt_verbose = 0;
-  master->opt_flood_poll = 0;
-  master->deadline = 0;
-  master->ntransmitted = 0;
-  master->nreceived = 0;
-  master->tmax = 0;
-  master->lingertime = 10;
 }
 
 #ifndef TESTING
