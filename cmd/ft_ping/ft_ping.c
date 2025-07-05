@@ -4,15 +4,15 @@
 static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
 
-volatile int g_is_exiting = 0;
-
 t_ping_state *global_state = NULL;
 
 int entrypoint(int argc, char **argv) {
   t_ping_master master;
   configure_state_usecase(&master);
-  t_ping_state state = {.in_pr_addr = 0, .pr_addr_jmp = {}};
+
+  t_ping_state state = {.is_in_printing_addr = 0, .is_exiting = 0, .pr_addr_jmp = {}};
   global_state = &state;
+
   if (on_exit(cleanup_usecase, (void *)&master) != 0) {
     error(1, "on_exit failed\n");
     return (1);
@@ -52,11 +52,17 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
     error(1, "malloc failed failed\n");
   }
   bzero(recved_packet, packet_size);
-  while (!g_is_exiting) {
+  while (1) {
+    if (global_state->is_exiting) {
+      break;
+    }
+    /* status_snapshot を実装する */
+    // if (rts->status_snapshot)
+    // 	status(rts);
     do {
       next = pinger(master, packet_ptr, packet_size);
       next = schedule_exit(master, next);
-    } while (next <= 0 && !g_is_exiting);
+    } while (next <= 0);
     polling = 0;
     recv_error = 0;
     if (master->opt_adaptive || master->opt_flood_poll || next < SCHINT(master->interval)) {
@@ -85,7 +91,9 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
     receive_replies_usecase(master, recved_packet, packet_size, &polling, &recv_error);
   }
   free(recved_packet);
-  g_is_exiting = 0;
+  // 統計情報を表示
+  // show_statistics_usecase();
+  return ;
 }
 
 static int pinger(t_ping_master *master, void *packet, size_t packet_size) {

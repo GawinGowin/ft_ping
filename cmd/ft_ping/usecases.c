@@ -22,14 +22,22 @@ void configure_state_usecase(t_ping_master *master) {
   master->lingertime = 10;
 }
 
-static void signal_handler(int signo __attribute__((__unused__))) { g_is_exiting = 1; }
-
-static void alarm_handler(int signo __attribute__((__unused__))) { g_is_exiting = 1; }
+static void signal_handler(int signo __attribute__((__unused__))) { 
+  global_state->is_exiting = 1;
+  if (global_state->is_in_printing_addr) {
+    longjmp(global_state->pr_addr_jmp, 0);
+  }
+}
 
 void setup_signal_handlers_usecase(void) {
-  if (signal(SIGINT, signal_handler) == SIG_ERR || signal(SIGQUIT, SIG_IGN) == SIG_ERR ||
-      signal(SIGALRM, alarm_handler) == SIG_ERR) {
-    error(1, "signal failed\n");
+  if (signal(SIGINT, signal_handler) == SIG_ERR) {
+    error(1, "set signal SIGINT failed\n");
+  }
+  if (signal(SIGQUIT, SIG_IGN) == SIG_ERR) { // status_snapshot: 実装するかは検討
+    error(1, "set signal SIGQUIT failed\n");
+  }
+  if (signal(SIGALRM, signal_handler) == SIG_ERR) {
+    error(1, "set signal SIGALRM failed\n");
   }
 }
 

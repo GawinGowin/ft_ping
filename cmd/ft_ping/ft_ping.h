@@ -20,6 +20,7 @@
 #include <netinet/ip_icmp.h>
 #include <poll.h>
 #include <sched.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -31,7 +32,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <setjmp.h>
 
 #define IPV4_HEADER_SIZE 20
 #define MIN_INTERVAL_MS 10
@@ -42,7 +42,8 @@
 #endif
 
 typedef struct ping_state {
-  volatile int in_pr_addr; /* pr_addr() is executing */
+  volatile int is_in_printing_addr;
+  volatile unsigned int is_exiting : 1;
   jmp_buf pr_addr_jmp;
 } t_ping_state;
 
@@ -72,8 +73,6 @@ typedef struct ping_master {
   unsigned int opt_adaptive : 1;
   int opt_flood_poll;
 } t_ping_master;
-
-extern volatile int g_is_exiting;
 
 /* UseCases */
 void configure_state_usecase(t_ping_master *master);
