@@ -56,6 +56,8 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
     if (global_state->is_exiting) {
       break;
     }
+		if (master->npackets && master->nreceived >= master->npackets)
+			break;
     /* status_snapshot を実装する */
     // if (rts->status_snapshot)
     // 	status(rts);

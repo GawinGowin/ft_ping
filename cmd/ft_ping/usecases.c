@@ -272,7 +272,7 @@ int receive_replies_usecase(
     (void)recv_time;
     (void)not_ours;
     (void)*recv_error;
-    (void)master;
+    master->nreceived++;
     break;
   }
   return (0);
