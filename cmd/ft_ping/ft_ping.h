@@ -20,6 +20,7 @@
 #include <netinet/ip_icmp.h>
 #include <poll.h>
 #include <sched.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -39,6 +40,14 @@
 #ifndef HZ
 #define HZ sysconf(_SC_CLK_TCK)
 #endif
+
+typedef struct ping_state {
+  volatile int is_in_printing_addr;
+  volatile unsigned int is_exiting : 1;
+  jmp_buf pr_addr_jmp;
+} t_ping_state;
+
+extern t_ping_state *global_state;
 
 typedef struct ping_master {
   int sockfd;
@@ -65,9 +74,9 @@ typedef struct ping_master {
   int opt_flood_poll;
 } t_ping_master;
 
-extern volatile int g_is_exiting;
-
 /* UseCases */
+void configure_state_usecase(t_ping_master *master);
+void setup_signal_handlers_usecase(void);
 int initialize_usecase(t_ping_master *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *state);
 void show_usage_usecase(void);
