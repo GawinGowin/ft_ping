@@ -47,10 +47,15 @@ typedef struct ping_state {
   jmp_buf pr_addr_jmp;
 } t_ping_state;
 
+typedef struct socket_st {
+  int fd;
+  int socktype;
+} t_socket_st;
+
 extern t_ping_state *global_state;
 
 typedef struct ping_master {
-  int sockfd;
+  t_socket_st socket_state;
   int datalen;
   int ttl;
   int tos;
@@ -95,7 +100,7 @@ int receive_replies_usecase(
 
 /* Infra */
 int is_ipv6_address(const char *addr);
-int create_socket_with_fallback(void);
+int create_socket(t_socket_st *socket_state);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
 void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll);

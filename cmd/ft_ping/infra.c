@@ -8,18 +8,21 @@ int is_ipv6_address(const char *addr) {
   return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
 }
 
-int create_socket_with_fallback(void) {
-  int sockfd;
+int create_socket(t_socket_st *socket_state) {
+  socket_state->fd = -1;
+  socket_state->socktype = -1;
   // SOCK_RAW を作るにはroot権限が必要なことがある
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (sockfd >= 0) {
-    return sockfd;
+  socket_state->fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+  if (socket_state->fd >= 0) {
+    socket_state->socktype = SOCK_RAW;
+    return socket_state->fd;
   }
   // SOCK_DGRAM で作る
   if (errno == EPERM || errno == EACCES) {
-    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-    if (sockfd >= 0) {
-      return sockfd;
+    socket_state->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (socket_state->fd >= 0) {
+      socket_state->socktype = SOCK_DGRAM;
+      return socket_state->fd;
     }
   }
   return -1;

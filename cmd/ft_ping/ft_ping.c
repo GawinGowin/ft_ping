@@ -56,8 +56,8 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
     if (global_state->is_exiting) {
       break;
     }
-		if (master->npackets && master->nreceived >= master->npackets)
-			break;
+    if (master->npackets && master->nreceived >= master->npackets)
+      break;
     /* status_snapshot を実装する */
     // if (rts->status_snapshot)
     // 	status(rts);
@@ -81,7 +81,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
       }
       if (!polling && (master->opt_adaptive || master->opt_flood_poll || master->interval)) {
         struct pollfd pset;
-        pset.fd = master->sockfd;
+        pset.fd = master->socket_state.fd;
         pset.events = POLLIN;
         pset.revents = 0;
         if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
@@ -95,7 +95,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   free(recved_packet);
   // 統計情報を表示
   // show_statistics_usecase();
-  return ;
+  return;
 }
 
 static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
@@ -112,7 +112,8 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   if (prev.tv_sec == 0 && prev.tv_usec == 0) {
     gettimeofday(&prev, NULL);
     int cc = send_ping_usecase(
-        master->sockfd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+        master->socket_state.fd, &master->whereto, packet, packet_size, master->datalen, seq,
+        &prev);
     if (cc < 0) {
       return -1;
     }
@@ -126,7 +127,7 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   }
   memcpy(&prev, &now, sizeof(struct timeval));
   int cc = send_ping_usecase(
-      master->sockfd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+      master->socket_state.fd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
   if (cc < 0) {
     return -1;
   }
