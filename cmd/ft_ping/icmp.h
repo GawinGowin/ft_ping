@@ -8,8 +8,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define ICMP_ECHO 8
-#define ICMP_ECHOREPLY 0
+#define	MAXIPLEN	60
+#define	MAXICMPLEN	76
 
 /**
  * @brief SOCK_DGRAMソケット用のICMPパケット構造体
@@ -29,23 +29,10 @@
 typedef struct ip_icmp {
   struct iphdr ip;
   struct icmphdr icmp;
-} t_ip_icmp __attribute__((packed));
+} __attribute__((packed)) t_ip_icmp;
 
-#define GET_PACKET_DATA(packet)                                                                    \
-  (packet + (sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint16_t) * 3))
-
-typedef struct s_icmp {
-  uint8_t type;
-  uint8_t code;
-  uint16_t checksum;
-  uint16_t id;
-  uint16_t seq;
-  uint64_t timestamp;
-} __attribute__((packed)) t_icmp; // メモリレイアウトの最適化を無効化
-
-void generate_packet_data(void *packet, size_t datalen);
+int create_echo_request_packet(void *packet, int socktype, uint16_t seq, size_t datalen);
 void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp);
-int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq);
 uint16_t calculate_checksum(void *data, int len);
 
 #endif /* ICMP_H */

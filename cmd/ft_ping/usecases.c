@@ -163,20 +163,21 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
 }
 
 int send_ping_usecase(
-    int sockfd,
+    t_socket_st *sock_state,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
     int datalen,
     uint16_t seq,
     struct timeval *timestamp) {
-  create_echo_request_packet(packet, 0, seq);
-  generate_packet_data(packet, datalen);
+
+  create_echo_request_packet(packet, sock_state->socktype, seq, datalen);
+
   set_timestamp(packet, datalen, timestamp);
-  t_icmp *icmp = (t_icmp *)packet;
+  struct icmphdr *icmp = (struct icmphdr *)packet;
   icmp->checksum = 0;
   icmp->checksum = calculate_checksum(packet, packet_size);
-  return send_packet(packet, packet_size, sockfd, whereto);
+  return send_packet(packet, packet_size, sock_state->fd, whereto);
 }
 
 int schedule_exit(t_ping_master *master, int next) {

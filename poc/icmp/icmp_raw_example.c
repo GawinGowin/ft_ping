@@ -91,6 +91,11 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  size_t icmp_header_size = sizeof(struct icmphdr);
+  size_t iphdr_size = sizeof(struct iphdr);
+  printf("ICMPヘッダサイズ: %zu バイト\n", icmp_header_size);
+  printf("IPヘッダサイズ: %zu バイト\n", iphdr_size);
+
   // IPヘッダの設定
   packet->ip.version = 4;
   packet->ip.ihl = 5; // ヘッダ長（5 * 4 = 20バイト）

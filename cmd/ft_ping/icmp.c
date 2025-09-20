@@ -1,33 +1,60 @@
 #include "icmp.h"
 
-void generate_packet_data(void *packet, size_t datalen) {
+int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen) {
   if (packet == NULL || datalen <= 0) {
-    return;
+    return -1;
   }
-  unsigned char *data = GET_PACKET_DATA(packet);
-  for (size_t i = 0; i < datalen; i++) {
-    data[i] = (unsigned char)((size_t)i % UCHAR_MAX);
-  }
-  return;
+  t_ip_icmp *packet_icmp = (t_ip_icmp *)packet;
+
+  packet_icmp->ip.version = 4;
+  packet_icmp->ip.ihl = 5;
+  packet_icmp->ip.tos = 0;
+  packet_icmp->ip.tot_len = htons(sizeof(t_ip_icmp) + datalen);
+  packet_icmp->ip.id = htons(getpid());
+  packet_icmp->ip.frag_off = 0;
+  packet_icmp->ip.ttl = 64;
+  packet_icmp->ip.protocol = IPPROTO_ICMP;
+  packet_icmp->ip.check = 0; // 後で計算
+  memcpy(&packet_icmp->ip.saddr, &src_addr, sizeof(src_addr));
+  memcpy(&packet_icmp->ip.daddr, &dest_addr, sizeof(dest_addr));
+  return 0;
 }
 
-void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp) {
+int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen) {
+  if (packet == NULL || datalen <= 0) {
+    return -1;
+  }
+  if (socktype != SOCK_RAW && socktype != SOCK_DGRAM) {
+    return -1;
+  }
+  unsigned char *payload;
+  struct icmphdr *icmp_hdr;
+
+  if (socktype == SOCK_RAW) {
+    t_ip_icmp *raw_icmp_hdr = (t_ip_icmp *)packet;
+    icmp_hdr = &raw_icmp_hdr->icmp;
+    payload = (unsigned char *)packet + sizeof(t_ip_icmp);
+  } else if (socktype == SOCK_DGRAM) {
+    icmp_hdr = (struct icmphdr *)packet;
+    payload = (unsigned char *)packet + sizeof(struct icmphdr);
+  }
+  icmp_hdr->type = ICMP_ECHO;
+  icmp_hdr->code = 0;
+  icmp_hdr->checksum = 0; // 後で計算
+  icmp_hdr->un.echo.id = htons(getpid());
+  icmp_hdr->un.echo.sequence = htons(seq);
+  for (size_t i = 0; i < datalen; i++) {
+    payload[i] = (unsigned char)((size_t)i % UCHAR_MAX);
+  }
+  return 0;
+}
+
+void set_timestamp(void *payload, size_t datalen, struct timeval *timestamp) {
   if (datalen < sizeof(*timestamp)) {
     return;
   }
-  t_icmp *icpm = (t_icmp *)packet;
-  memcpy(&icpm->timestamp, timestamp, sizeof(*timestamp));
+  memcpy(payload, timestamp, sizeof(*timestamp));
   return;
-}
-
-int create_echo_request_packet(void *packet, uint16_t id, uint16_t seq) {
-  t_icmp *icmp = (t_icmp *)packet;
-
-  icmp->type = ICMP_ECHO;
-  icmp->code = 0;
-  icmp->id = htons(id);
-  icmp->seq = htons(seq);
-  return 0;
 }
 
 uint16_t calculate_checksum(void *data, int len) {

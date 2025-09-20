@@ -1,5 +1,4 @@
 #include "ft_ping.h"
-#include "icmp.h"
 
 static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
@@ -29,10 +28,11 @@ int entrypoint(int argc, char **argv) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&master, argv);
-  size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master.datalen;
+  size_t packet_size = sizeof(struct icmphdr) + master.datalen;
   printf(
       "PING %s (%s) %d(%zu) bytes of data.\n", master.hostname, inet_ntoa(master.whereto.sin_addr),
-      master.datalen, packet_size + IPV4_HEADER_SIZE);
+      master.datalen, packet_size + sizeof(struct iphdr));
+
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
@@ -112,7 +112,7 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   if (prev.tv_sec == 0 && prev.tv_usec == 0) {
     gettimeofday(&prev, NULL);
     int cc = send_ping_usecase(
-        master->socket_state.fd, &master->whereto, packet, packet_size, master->datalen, seq,
+        &(master->socket_state), &master->whereto, packet, packet_size, master->datalen, seq,
         &prev);
     if (cc < 0) {
       return -1;
@@ -127,7 +127,7 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   }
   memcpy(&prev, &now, sizeof(struct timeval));
   int cc = send_ping_usecase(
-      master->socket_state.fd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+      &(master->socket_state), &master->whereto, packet, packet_size, master->datalen, seq, &prev);
   if (cc < 0) {
     return -1;
   }

@@ -85,14 +85,16 @@ void setup_signal_handlers_usecase(void);
 int initialize_usecase(t_ping_master *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *state);
 void show_usage_usecase(void);
+
 int send_ping_usecase(
-    int sockfd,
+    t_socket_st *sock_state,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
     int datalen,
     uint16_t seq,
     struct timeval *timestamp);
+
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
 int receive_replies_usecase(
