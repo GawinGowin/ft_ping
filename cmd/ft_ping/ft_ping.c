@@ -1,9 +1,9 @@
 #include "ft_ping.h"
 
+t_ping_state *global_state = NULL;
+
 static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
-
-t_ping_state *global_state = NULL;
 
 int entrypoint(int argc, char **argv) {
   t_ping_master master;

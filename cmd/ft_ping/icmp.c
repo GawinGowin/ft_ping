@@ -1,5 +1,7 @@
 #include "icmp.h"
 
+static uint16_t calculate_checksum(void *data, int len);
+
 int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen) {
   if (packet == NULL || datalen <= 0) {
     return -1;
@@ -17,10 +19,12 @@ int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_add
   packet_icmp->ip.check = 0; // 後で計算
   memcpy(&packet_icmp->ip.saddr, &src_addr, sizeof(src_addr));
   memcpy(&packet_icmp->ip.daddr, &dest_addr, sizeof(dest_addr));
+
+  packet_icmp->ip.check = calculate_checksum(&packet_icmp->ip, packet_icmp->ip.ihl * 4);
   return 0;
 }
 
-int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen) {
+int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp) {
   if (packet == NULL || datalen <= 0) {
     return -1;
   }
@@ -28,7 +32,7 @@ int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datale
     return -1;
   }
   unsigned char *payload;
-  struct icmphdr *icmp_hdr;
+  struct icmphdr *icmp_hdr = NULL;
 
   if (socktype == SOCK_RAW) {
     t_ip_icmp *raw_icmp_hdr = (t_ip_icmp *)packet;
@@ -46,18 +50,15 @@ int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datale
   for (size_t i = 0; i < datalen; i++) {
     payload[i] = (unsigned char)((size_t)i % UCHAR_MAX);
   }
+  if (datalen >= sizeof(*timestamp)) {
+    memcpy(payload, timestamp, sizeof(*timestamp));
+  }
+  size_t packet_size = sizeof(struct icmphdr) + datalen;
+  icmp_hdr->checksum = calculate_checksum((void *)icmp_hdr, packet_size);
   return 0;
 }
 
-void set_timestamp(void *payload, size_t datalen, struct timeval *timestamp) {
-  if (datalen < sizeof(*timestamp)) {
-    return;
-  }
-  memcpy(payload, timestamp, sizeof(*timestamp));
-  return;
-}
-
-uint16_t calculate_checksum(void *data, int len) {
+static uint16_t calculate_checksum(void *data, int len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
 

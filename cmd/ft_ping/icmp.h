@@ -1,12 +1,16 @@
 #ifndef ICMP_H
 #define ICMP_H
 
+#define _GNU_SOURCE
+
 #include <limits.h>
 #include <netinet/ip_icmp.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define	MAXIPLEN	60
 #define	MAXICMPLEN	76
@@ -29,10 +33,9 @@
 typedef struct ip_icmp {
   struct iphdr ip;
   struct icmphdr icmp;
-} __attribute__((packed)) t_ip_icmp;
+} t_ip_icmp;
 
-int create_echo_request_packet(void *packet, int socktype, uint16_t seq, size_t datalen);
-void set_timestamp(void *packet, size_t datalen, struct timeval *timestamp);
-uint16_t calculate_checksum(void *data, int len);
+int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen);
+int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp) {
 
 #endif /* ICMP_H */
