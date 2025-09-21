@@ -47,12 +47,12 @@ typedef struct ping_state {
   jmp_buf pr_addr_jmp;
 } t_ping_state;
 
+extern t_ping_state *global_state;
+
 typedef struct socket_st {
   int fd;
   int socktype;
 } t_socket_st;
-
-extern t_ping_state *global_state;
 
 typedef struct ping_master {
   t_socket_st socket_state;

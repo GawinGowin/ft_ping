@@ -24,7 +24,8 @@ int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_add
   return 0;
 }
 
-int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp) {
+int set_icmp_header_data(
+    void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp) {
   if (packet == NULL || datalen <= 0) {
     return -1;
   }

@@ -1,7 +1,9 @@
 #ifndef ICMP_H
 #define ICMP_H
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <limits.h>
 #include <netinet/ip_icmp.h>
@@ -36,6 +38,6 @@ typedef struct ip_icmp {
 } t_ip_icmp;
 
 int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen);
-int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp) {
+int set_icmp_header_data(void *packet, int socktype, uint16_t seq, size_t datalen, struct timeval *timestamp);
 
 #endif /* ICMP_H */
