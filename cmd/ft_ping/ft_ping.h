@@ -65,6 +65,7 @@ typedef struct ping_master {
   int interval;
 
   struct sockaddr_in whereto;
+  struct sockaddr_in from;
   size_t sndbuf;
   size_t rcvbuf;
   int deadline;

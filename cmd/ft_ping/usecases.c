@@ -170,6 +170,10 @@ int send_ping_usecase(
     int datalen,
     uint16_t seq,
     struct timeval *timestamp) {
+  if (sock_state->socktype == SOCK_RAW) {
+    set_ip_header(packet, (struct in_addr){0}, whereto->sin_addr, datalen);
+  }
+  set_icmp_header_data(packet, sock_state->socktype, seq, datalen, timestamp);
 
   create_echo_request_packet(packet, sock_state->socktype, seq, datalen);
 
@@ -177,6 +181,9 @@ int send_ping_usecase(
   struct icmphdr *icmp = (struct icmphdr *)packet;
   icmp->checksum = 0;
   icmp->checksum = calculate_checksum(packet, packet_size);
+
+
+
   return send_packet(packet, packet_size, sock_state->fd, whereto);
 }
 
