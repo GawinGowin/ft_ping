@@ -22,7 +22,7 @@ extern "C" {
 TEST(GetSourceAddressTest, ValidDevice) {
   struct sockaddr_in dest = {};
   dest.sin_family = AF_INET;
-  inet_pton(AF_INET, "8.8.8.8", &dest.sin_addr);
+  inet_pton(AF_INET, "127.0.0.1", &dest.sin_addr);
   struct sockaddr_in src;
   get_source_address(&src, &dest, "");
   char ip_str[INET_ADDRSTRLEN];
