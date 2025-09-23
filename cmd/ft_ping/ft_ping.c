@@ -116,8 +116,8 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   if (prev.tv_sec == 0 && prev.tv_usec == 0) {
     gettimeofday(&prev, NULL);
     int cc = send_ping_usecase(
-        &(master->socket_state), &master->from, &master->whereto, packet, packet_size, master->datalen, seq,
-        &prev);
+        &(master->socket_state), &master->from, &master->whereto, packet, packet_size,
+        master->datalen, seq, &prev);
     if (cc < 0) {
       return -1;
     }
@@ -131,7 +131,8 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   }
   memcpy(&prev, &now, sizeof(struct timeval));
   int cc = send_ping_usecase(
-      &(master->socket_state), &master->from, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+      &(master->socket_state), &master->from, &master->whereto, packet, packet_size,
+      master->datalen, seq, &prev);
   if (cc < 0) {
     return -1;
   }

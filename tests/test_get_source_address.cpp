@@ -2,6 +2,7 @@
 #include <cstring>
 #include <errno.h>
 #include <gtest/gtest.h>
+#include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
@@ -13,7 +14,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <iostream>
 
 extern "C" {
 #include "ft_ping.h"

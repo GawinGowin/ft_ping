@@ -20,7 +20,7 @@ int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_add
 
   packet_icmp->ip.saddr = src_addr.s_addr;
   packet_icmp->ip.daddr = dest_addr.s_addr;
-  
+
   packet_icmp->ip.check = calculate_checksum(&packet_icmp->ip, packet_icmp->ip.ihl * 4);
   return 0;
 }
