@@ -87,8 +87,14 @@ int initialize_usecase(t_ping_master *master, char **argv) {
   if (setsockopt(fd, IPPROTO_IP, IP_RECVERR, &on, sizeof(on)) < 0) {
     error(1, "setsockopt IP_RECVERR failed: %s\n", strerror(errno));
   }
+  // IP_HDRINCLオプションの設定（自前でIPヘッダを含める）: これがないとRAWソケットで送信できない
+  int hdrincl = 1;
+  if (master->socket_state.socktype == SOCK_RAW &&
+      setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &hdrincl, sizeof(hdrincl)) < 0) {
+    error(1, "setsockopt IP_HDRINCL failed: %s\n", strerror(errno));
+  }
   dns_lookup(target, &master->whereto);
-  get_source_address(&master->from, &master->whereto, NULL);    
+  get_source_address(&master->from, &master->whereto, NULL);
   return (0);
 }
 
@@ -164,7 +170,7 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
 }
 
 int send_ping_usecase(
-  t_socket_st *sock_state,
+    t_socket_st *sock_state,
     struct sockaddr_in *from,
     struct sockaddr_in *whereto,
     void *packet,
