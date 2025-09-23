@@ -89,6 +89,7 @@ void show_usage_usecase(void);
 
 int send_ping_usecase(
     t_socket_st *sock_state,
+    struct sockaddr_in *from,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
@@ -107,6 +108,7 @@ int create_socket(t_socket_st *socket_state);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
 void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll);
+void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const char *device);
 
 /* utils */
 long parse_long(

@@ -88,6 +88,7 @@ int initialize_usecase(t_ping_master *master, char **argv) {
     error(1, "setsockopt IP_RECVERR failed: %s\n", strerror(errno));
   }
   dns_lookup(target, &master->whereto);
+  get_source_address(&master->from, &master->whereto, NULL);    
   return (0);
 }
 
@@ -163,7 +164,8 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
 }
 
 int send_ping_usecase(
-    t_socket_st *sock_state,
+  t_socket_st *sock_state,
+    struct sockaddr_in *from,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
@@ -171,19 +173,9 @@ int send_ping_usecase(
     uint16_t seq,
     struct timeval *timestamp) {
   if (sock_state->socktype == SOCK_RAW) {
-    set_ip_header(packet, (struct in_addr){0}, whereto->sin_addr, datalen);
+    set_ip_header(packet, from->sin_addr, whereto->sin_addr, datalen);
   }
   set_icmp_header_data(packet, sock_state->socktype, seq, datalen, timestamp);
-
-  create_echo_request_packet(packet, sock_state->socktype, seq, datalen);
-
-  set_timestamp(packet, datalen, timestamp);
-  struct icmphdr *icmp = (struct icmphdr *)packet;
-  icmp->checksum = 0;
-  icmp->checksum = calculate_checksum(packet, packet_size);
-
-
-
   return send_packet(packet, packet_size, sock_state->fd, whereto);
 }
 

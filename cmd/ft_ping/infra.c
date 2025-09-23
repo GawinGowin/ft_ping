@@ -84,32 +84,28 @@ void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll) {
   }
 }
 
-struct sockaddr_in get_source_address(struct sockaddr_in *dest, const char *device) {
-    struct sockaddr_in source = {0};
-    int probe_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (probe_fd < 0) {
-        error(2, "socket creation failed");
-    }
+void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const char *device) {
+  memset(src, 0, sizeof(*src));
+  int probe_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (probe_fd < 0) {
+    error(2, "socket creation failed");
+  }
 
-    if (device) {
-        if (setsockopt(probe_fd, SOL_SOCKET, SO_BINDTODEVICE,
-                       device, strlen(device) + 1) == -1) {
-            error(2, "SO_BINDTODEVICE failed");
-        }
+  if (device) {
+    if (setsockopt(probe_fd, SOL_SOCKET, SO_BINDTODEVICE, device, strlen(device) + 1) == -1) {
+      error(2, "SO_BINDTODEVICE failed");
     }
-
-    struct sockaddr_in dst = *dest;
-    dst.sin_port = htons(1025);
-
-    if (connect(probe_fd, (struct sockaddr *)&dst, sizeof(dst)) == -1) {
-        error(2, "connect failed");
-    }
-
-    socklen_t alen = sizeof(source);
-    if (getsockname(probe_fd, (struct sockaddr *)&source, &alen) == -1) {
-        error(2, "getsockname failed");
-    }
-    source.sin_port = 0;
-    close(probe_fd);
-    return source;
+  }
+  struct sockaddr_in dst = *dest;
+  dst.sin_port = htons(1025);
+  if (connect(probe_fd, (struct sockaddr *)&dst, sizeof(dst)) == -1) {
+    error(2, "connect failed");
+  }
+  socklen_t alen = sizeof(*src);
+  if (getsockname(probe_fd, (struct sockaddr *)src, &alen) == -1) {
+    error(2, "getsockname failed");
+  }
+  src->sin_port = 0;
+  close(probe_fd);
+  return;
 }

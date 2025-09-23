@@ -101,6 +101,7 @@ int main(int argc, char *argv[]) {
   packet->ip.ihl = 5; // ヘッダ長（5 * 4 = 20バイト）
   packet->ip.tos = 0;
   packet->ip.tot_len = htons(packet_size);
+  printf("パケット全長: %ld \n", packet_size);
   packet->ip.id = htons(getpid());
   packet->ip.frag_off = 0;
   packet->ip.ttl = 64;

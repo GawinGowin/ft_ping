@@ -17,9 +17,10 @@ int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_add
   packet_icmp->ip.ttl = 64;
   packet_icmp->ip.protocol = IPPROTO_ICMP;
   packet_icmp->ip.check = 0; // 後で計算
-  memcpy(&packet_icmp->ip.saddr, &src_addr, sizeof(src_addr));
-  memcpy(&packet_icmp->ip.daddr, &dest_addr, sizeof(dest_addr));
 
+  packet_icmp->ip.saddr = src_addr.s_addr;
+  packet_icmp->ip.daddr = dest_addr.s_addr;
+  
   packet_icmp->ip.check = calculate_checksum(&packet_icmp->ip, packet_icmp->ip.ihl * 4);
   return 0;
 }
@@ -32,7 +33,7 @@ int set_icmp_header_data(
   if (socktype != SOCK_RAW && socktype != SOCK_DGRAM) {
     return -1;
   }
-  unsigned char *payload;
+  unsigned char *payload = NULL;
   struct icmphdr *icmp_hdr = NULL;
 
   if (socktype == SOCK_RAW) {
