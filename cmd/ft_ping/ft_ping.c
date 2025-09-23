@@ -1,10 +1,9 @@
 #include "ft_ping.h"
-#include "icmp.h"
+
+t_ping_state *global_state = NULL;
 
 static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_size);
 static int pinger(t_ping_master *master, void *packet, size_t packet_size);
-
-t_ping_state *global_state = NULL;
 
 int entrypoint(int argc, char **argv) {
   t_ping_master master;
@@ -29,10 +28,15 @@ int entrypoint(int argc, char **argv) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&master, argv);
-  size_t packet_size = sizeof(t_icmp) - sizeof(uint64_t) + master.datalen;
+
+  size_t packet_size = sizeof(struct icmphdr) + master.datalen;
+  int is_raw_socket = (master.socket_state.socktype == SOCK_RAW);
+  if (is_raw_socket) {
+    packet_size += sizeof(struct iphdr);
+  }
   printf(
       "PING %s (%s) %d(%zu) bytes of data.\n", master.hostname, inet_ntoa(master.whereto.sin_addr),
-      master.datalen, packet_size + IPV4_HEADER_SIZE);
+      master.datalen, is_raw_socket ? packet_size : packet_size + sizeof(struct iphdr));
   void *packet = malloc(packet_size);
   if (!packet) {
     error(1, "malloc failed\n");
@@ -56,8 +60,8 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
     if (global_state->is_exiting) {
       break;
     }
-		if (master->npackets && master->nreceived >= master->npackets)
-			break;
+    if (master->npackets && master->nreceived >= master->npackets)
+      break;
     /* status_snapshot を実装する */
     // if (rts->status_snapshot)
     // 	status(rts);
@@ -81,7 +85,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
       }
       if (!polling && (master->opt_adaptive || master->opt_flood_poll || master->interval)) {
         struct pollfd pset;
-        pset.fd = master->sockfd;
+        pset.fd = master->socket_state.fd;
         pset.events = POLLIN;
         pset.revents = 0;
         if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
@@ -95,7 +99,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   free(recved_packet);
   // 統計情報を表示
   // show_statistics_usecase();
-  return ;
+  return;
 }
 
 static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
@@ -112,7 +116,8 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   if (prev.tv_sec == 0 && prev.tv_usec == 0) {
     gettimeofday(&prev, NULL);
     int cc = send_ping_usecase(
-        master->sockfd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+        &(master->socket_state), &master->from, &master->whereto, packet, packet_size,
+        master->datalen, seq, &prev);
     if (cc < 0) {
       return -1;
     }
@@ -126,7 +131,8 @@ static int pinger(t_ping_master *master, void *packet, size_t packet_size) {
   }
   memcpy(&prev, &now, sizeof(struct timeval));
   int cc = send_ping_usecase(
-      master->sockfd, &master->whereto, packet, packet_size, master->datalen, seq, &prev);
+      &(master->socket_state), &master->from, &master->whereto, packet, packet_size,
+      master->datalen, seq, &prev);
   if (cc < 0) {
     return -1;
   }

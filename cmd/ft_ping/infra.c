@@ -8,18 +8,21 @@ int is_ipv6_address(const char *addr) {
   return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
 }
 
-int create_socket_with_fallback(void) {
-  int sockfd;
+int create_socket(t_socket_st *socket_state) {
+  socket_state->fd = -1;
+  socket_state->socktype = -1;
   // SOCK_RAW を作るにはroot権限が必要なことがある
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (sockfd >= 0) {
-    return sockfd;
+  socket_state->fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+  if (socket_state->fd >= 0) {
+    socket_state->socktype = SOCK_RAW;
+    return socket_state->fd;
   }
   // SOCK_DGRAM で作る
   if (errno == EPERM || errno == EACCES) {
-    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-    if (sockfd >= 0) {
-      return sockfd;
+    socket_state->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (socket_state->fd >= 0) {
+      socket_state->socktype = SOCK_DGRAM;
+      return socket_state->fd;
     }
   }
   return -1;
@@ -79,4 +82,30 @@ void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll) {
   if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv))) {
     *opt_flood_poll = 1;
   }
+}
+
+void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const char *device) {
+  memset(src, 0, sizeof(*src));
+  int probe_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (probe_fd < 0) {
+    error(2, "socket creation failed");
+  }
+
+  if (device) {
+    if (setsockopt(probe_fd, SOL_SOCKET, SO_BINDTODEVICE, device, strlen(device) + 1) == -1) {
+      error(2, "SO_BINDTODEVICE failed");
+    }
+  }
+  struct sockaddr_in dst = *dest;
+  dst.sin_port = htons(1025);
+  if (connect(probe_fd, (struct sockaddr *)&dst, sizeof(dst)) == -1) {
+    error(2, "connect failed");
+  }
+  socklen_t alen = sizeof(*src);
+  if (getsockname(probe_fd, (struct sockaddr *)src, &alen) == -1) {
+    error(2, "getsockname failed");
+  }
+  src->sin_port = 0;
+  close(probe_fd);
+  return;
 }

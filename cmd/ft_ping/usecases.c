@@ -4,7 +4,8 @@ static void set_socket_buff(t_ping_master *master);
 static int __schedule_exit(t_ping_master *master, int next);
 
 void configure_state_usecase(t_ping_master *master) {
-  master->sockfd = -1;
+  master->socket_state.fd = -1;
+  master->socket_state.socktype = -1;
   master->datalen = 56;
   master->ttl = 64;
   master->tos = 0;
@@ -22,7 +23,7 @@ void configure_state_usecase(t_ping_master *master) {
   master->lingertime = 10;
 }
 
-static void signal_handler(int signo __attribute__((__unused__))) { 
+static void signal_handler(int signo __attribute__((__unused__))) {
   global_state->is_exiting = 1;
   if (global_state->is_in_printing_addr) {
     longjmp(global_state->pr_addr_jmp, 0);
@@ -70,28 +71,36 @@ int initialize_usecase(t_ping_master *master, char **argv) {
   }
 
   // ソケット作成
-  master->sockfd = create_socket_with_fallback();
-  if (master->sockfd < 0) {
+  if (create_socket(&master->socket_state) < 0) {
     error(1, "Failed to create socket: %s\n", strerror(errno));
   }
+  int fd = master->socket_state.fd;
   set_socket_buff(master);
-  configure_socket_timeouts(master->sockfd, master->interval, &master->opt_flood_poll);
-  if (setsockopt(master->sockfd, IPPROTO_IP, IP_TTL, &master->ttl, sizeof(master->ttl)) < 0) {
+  configure_socket_timeouts(fd, master->interval, &master->opt_flood_poll);
+  if (setsockopt(fd, IPPROTO_IP, IP_TTL, &master->ttl, sizeof(master->ttl)) < 0) {
     error(1, "setsockopt IP_TTL failed: %s\n", strerror(errno));
   }
-  if (setsockopt(master->sockfd, IPPROTO_IP, IP_TOS, &master->tos, sizeof(master->tos)) < 0) {
+  if (setsockopt(fd, IPPROTO_IP, IP_TOS, &master->tos, sizeof(master->tos)) < 0) {
     error(1, "setsockopt IP_TOS failed: %s\n", strerror(errno));
   }
   int on = 1;
-  if (setsockopt(master->sockfd, IPPROTO_IP, IP_RECVERR, &on, sizeof(on)) < 0) {
+  if (setsockopt(fd, IPPROTO_IP, IP_RECVERR, &on, sizeof(on)) < 0) {
     error(1, "setsockopt IP_RECVERR failed: %s\n", strerror(errno));
   }
+  // IP_HDRINCLオプションの設定（自前でIPヘッダを含める）: これがないとRAWソケットで送信できない
+  int hdrincl = 1;
+  if (master->socket_state.socktype == SOCK_RAW &&
+      setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &hdrincl, sizeof(hdrincl)) < 0) {
+    error(1, "setsockopt IP_HDRINCL failed: %s\n", strerror(errno));
+  }
   dns_lookup(target, &master->whereto);
+  get_source_address(&master->from, &master->whereto, NULL);
   return (0);
 }
 
 static void set_socket_buff(t_ping_master *master) {
   size_t send = master->datalen + 8;
+  int fd = master->socket_state.fd;
 
   send += ((send + 511) / 512) * (IPV4_HEADER_SIZE + 240); // 240 is the overhead of IP options
   if (send > INT_MAX) {
@@ -100,9 +109,7 @@ static void set_socket_buff(t_ping_master *master) {
   if (master->sndbuf == 0) {
     master->sndbuf = (int)send;
   }
-  if (setsockopt(
-          master->sockfd, SOL_SOCKET, SO_SNDBUF, (char *)&master->sndbuf, sizeof(master->sndbuf)) <
-      0) {
+  if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&master->sndbuf, sizeof(master->sndbuf)) < 0) {
     error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
   }
 
@@ -115,9 +122,8 @@ static void set_socket_buff(t_ping_master *master) {
   }
   socklen_t tmplen = sizeof(hold);
   master->rcvbuf = (int)rcvbuf;
-  setsockopt(
-      master->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&master->rcvbuf, sizeof(master->rcvbuf));
-  if (getsockopt(master->sockfd, SOL_SOCKET, SO_RCVBUF, (char *)&hold, &tmplen) == 0) {
+  setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&master->rcvbuf, sizeof(master->rcvbuf));
+  if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&hold, &tmplen) == 0) {
     if (hold < rcvbuf)
       error(0, "WARNING: probably, rcvbuf is not enough to hold preload\n");
   }
@@ -164,20 +170,19 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
 }
 
 int send_ping_usecase(
-    int sockfd,
+    t_socket_st *sock_state,
+    struct sockaddr_in *from,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
     int datalen,
     uint16_t seq,
     struct timeval *timestamp) {
-  create_echo_request_packet(packet, 0, seq);
-  generate_packet_data(packet, datalen);
-  set_timestamp(packet, datalen, timestamp);
-  t_icmp *icmp = (t_icmp *)packet;
-  icmp->checksum = 0;
-  icmp->checksum = calculate_checksum(packet, packet_size);
-  return send_packet(packet, packet_size, sockfd, whereto);
+  if (sock_state->socktype == SOCK_RAW) {
+    set_ip_header(packet, from->sin_addr, whereto->sin_addr, datalen);
+  }
+  set_icmp_header_data(packet, sock_state->socktype, seq, datalen, timestamp);
+  return send_packet(packet, packet_size, sock_state->fd, whereto);
 }
 
 int schedule_exit(t_ping_master *master, int next) {
@@ -263,7 +268,7 @@ int receive_replies_usecase(
     struct timeval recv_time;
     int not_ours = 0;
 
-    ret = recvmsg(master->sockfd, packet_buffer, *polling);
+    ret = recvmsg(master->socket_state.fd, packet_buffer, *polling);
     *polling = MSG_DONTWAIT;
     (void)ret;
     (void)packet_buffer;
@@ -281,5 +286,5 @@ int receive_replies_usecase(
 void cleanup_usecase(int status, void *master) {
   (void)status;
   t_ping_master *st = (t_ping_master *)master;
-  close(st->sockfd);
+  close(st->socket_state.fd);
 }

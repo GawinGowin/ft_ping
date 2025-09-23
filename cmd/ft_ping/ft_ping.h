@@ -49,8 +49,13 @@ typedef struct ping_state {
 
 extern t_ping_state *global_state;
 
+typedef struct socket_st {
+  int fd;
+  int socktype;
+} t_socket_st;
+
 typedef struct ping_master {
-  int sockfd;
+  t_socket_st socket_state;
   int datalen;
   int ttl;
   int tos;
@@ -60,6 +65,7 @@ typedef struct ping_master {
   int interval;
 
   struct sockaddr_in whereto;
+  struct sockaddr_in from;
   size_t sndbuf;
   size_t rcvbuf;
   int deadline;
@@ -80,14 +86,17 @@ void setup_signal_handlers_usecase(void);
 int initialize_usecase(t_ping_master *state, char **argv);
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *state);
 void show_usage_usecase(void);
+
 int send_ping_usecase(
-    int sockfd,
+    t_socket_st *sock_state,
+    struct sockaddr_in *from,
     struct sockaddr_in *whereto,
     void *packet,
     size_t packet_size,
     int datalen,
     uint16_t seq,
     struct timeval *timestamp);
+
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
 int receive_replies_usecase(
@@ -95,10 +104,11 @@ int receive_replies_usecase(
 
 /* Infra */
 int is_ipv6_address(const char *addr);
-int create_socket_with_fallback(void);
+int create_socket(t_socket_st *socket_state);
 void dns_lookup(const char *hostname, struct sockaddr_in *addr);
 int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in *whereto);
 void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll);
+void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const char *device);
 
 /* utils */
 long parse_long(
