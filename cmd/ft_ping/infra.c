@@ -8,7 +8,7 @@ int is_ipv6_address(const char *addr) {
   return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
 }
 
-int create_socket(t_socket_st *socket_state) {
+int create_socket(t_socket_st *socket_state) { // TODO: 設定されたオプションパラメータに応じてどちらのソケットで作成するか選択するように
   socket_state->fd = -1;
   socket_state->socktype = -1;
   // SOCK_RAW を作るにはroot権限が必要なことがある
