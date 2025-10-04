@@ -1,6 +1,6 @@
 #include "icmp.h"
 
-static uint16_t calculate_checksum(void *data, int len);
+static uint16_t calculate_checksum(void *data, size_t len);
 
 int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen) {
   if (packet == NULL || datalen <= 0) {
@@ -60,7 +60,7 @@ int set_icmp_header_data(
   return 0;
 }
 
-static uint16_t calculate_checksum(void *data, int len) {
+static uint16_t calculate_checksum(void *data, size_t len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
 
