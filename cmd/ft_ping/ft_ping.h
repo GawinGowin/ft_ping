@@ -41,18 +41,21 @@
 #define HZ sysconf(_SC_CLK_TCK)
 #endif
 
-typedef struct ping_state {
-  volatile int is_in_printing_addr;
-  volatile unsigned int is_exiting : 1;
-  jmp_buf pr_addr_jmp;
-} t_ping_state;
-
-extern t_ping_state *global_state;
-
 typedef struct socket_st {
   int fd;
   int socktype;
 } t_socket_st;
+
+typedef struct ping_state {
+  volatile int is_in_printing_addr;
+  volatile unsigned int is_exiting : 1;
+  jmp_buf pr_addr_jmp;
+
+  void *allocated_packet_addr;
+  t_socket_st *socket_state;
+} t_ping_state;
+
+extern t_ping_state *global_state;
 
 typedef struct ping_master {
   t_socket_st socket_state;

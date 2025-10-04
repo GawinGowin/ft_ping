@@ -9,10 +9,15 @@ int entrypoint(int argc, char **argv) {
   t_ping_master master;
   configure_state_usecase(&master);
 
-  t_ping_state state = {.is_in_printing_addr = 0, .is_exiting = 0, .pr_addr_jmp = {}};
+  t_ping_state state = {
+      .is_in_printing_addr = 0,
+      .is_exiting = 0,
+      .pr_addr_jmp = {},
+      .allocated_packet_addr = NULL,
+      .socket_state = NULL};
   global_state = &state;
 
-  if (on_exit(cleanup_usecase, (void *)&master) != 0) {
+  if (on_exit(cleanup_usecase, (void *)global_state) != 0) {
     error(1, "on_exit failed\n");
     return (1);
   }
@@ -28,6 +33,7 @@ int entrypoint(int argc, char **argv) {
     error(2, "usage error: Destination address required\n");
   }
   initialize_usecase(&master, argv);
+  global_state->socket_state = &master.socket_state;
 
   size_t packet_size = sizeof(struct icmphdr) + master.datalen;
   int is_raw_socket = (master.socket_state.socktype == SOCK_RAW);
@@ -37,13 +43,15 @@ int entrypoint(int argc, char **argv) {
   printf(
       "PING %s (%s) %d(%zu) bytes of data.\n", master.hostname, inet_ntoa(master.whereto.sin_addr),
       master.datalen, is_raw_socket ? packet_size : packet_size + sizeof(struct iphdr));
-  void *packet = malloc(packet_size);
+  global_state->allocated_packet_addr = malloc(packet_size);
+  void *packet = global_state->allocated_packet_addr;
   if (!packet) {
     error(1, "malloc failed\n");
   }
   bzero(packet, packet_size);
   main_loop(&master, packet, packet_size);
-  free(packet);
+  free(global_state->allocated_packet_addr);
+  global_state->allocated_packet_addr = NULL;
   return (0);
 }
 
@@ -98,7 +106,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   }
   free(recved_packet);
   // 統計情報を表示
-  // show_statistics_usecase();
+  // finish_usecase();
   return;
 }
 

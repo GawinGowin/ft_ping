@@ -293,8 +293,16 @@ int receive_replies_usecase(
   return (0);
 }
 
-void cleanup_usecase(int status, void *master) {
+void cleanup_usecase(int status, void *global_state) {
   (void)status;
-  t_ping_master *st = (t_ping_master *)master;
-  close(st->socket_state.fd);
+  if (global_state == NULL) {
+    return;
+  }
+  t_ping_state *st = (t_ping_state *)global_state;
+  if (st->socket_state != NULL && st->socket_state->fd >= 0) {
+    close(st->socket_state->fd);
+  }
+  if (st->allocated_packet_addr != NULL) {
+    free(st->allocated_packet_addr);
+  }
 }
