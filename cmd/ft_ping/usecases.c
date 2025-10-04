@@ -49,6 +49,10 @@ void show_usage_usecase(void) {
       "  <destination>      dns name or ip address\n"
       "  -A                 use adaptive ping\n"
       "  -c <count>         stop after <count> replies\n"
+      "  -D                 print timestamps\n"
+      "  -e <identifier>    define identifier for ping session, default is random for\n"
+      "                     SOCK_RAW and kernel defined for SOCK_DGRAM\n"
+      "                     Imply using SOCK_RAW (for IPv4 only for identifier 0)\n"
       "  -h                 display this help and exit\n"
       "  -l <preload>       send <preload> number of packages while waiting replies\n"
       "  -Q <tclass>        use quality of service <tclass> bits\n"
@@ -131,13 +135,16 @@ static void set_socket_buff(t_ping_master *master) {
 
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "Ahvt:Q:c:S:s:l:w:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
     case 'A':
       master->opt_adaptive = 1;
       break;
     case 'v':
       master->opt_verbose = 1;
+      break;
+    case 'D':
+      master->opt_ptimeofday = 1;
       break;
     case 't':
       master->ttl = parse_long(optarg, "invalid argument", 1, 255, error);
@@ -148,6 +155,9 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
     case 'c':
       master->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
+		case 'e':
+			master->ident = htons((uint16_t) parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
+			break;
     case 'S':
       master->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;

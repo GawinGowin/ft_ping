@@ -69,7 +69,7 @@ typedef struct ping_master {
   size_t sndbuf;
   size_t rcvbuf;
   int deadline;
-
+  uint16_t ident;
   int ntransmitted;
   int nreceived;
   int tmax;
@@ -77,6 +77,7 @@ typedef struct ping_master {
   char *hostname;
   unsigned int opt_verbose : 1;
   unsigned int opt_adaptive : 1;
+  unsigned int opt_ptimeofday : 1;
   int opt_flood_poll;
 } t_ping_master;
 
