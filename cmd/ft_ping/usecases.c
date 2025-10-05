@@ -155,9 +155,9 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
     case 'c':
       master->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
-		case 'e':
-			master->ident = htons((uint16_t) parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
-			break;
+    case 'e':
+      master->ident = htons((uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
+      break;
     case 'S':
       master->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
@@ -258,7 +258,6 @@ static int __schedule_exit(t_ping_master *master, int next) {
 /**
  * ICMP応答パケットを受信し処理するユースケース関数
  * 
- * 日本語説明：
  * ソケットバッファに複数のパケットがたまっている可能性があるため、無限ループでパケットを受信
  * Raw socketならば、ほかの端末からのパケットも受信する可能性がある。
  * 
@@ -268,28 +267,53 @@ static int __schedule_exit(t_ping_master *master, int next) {
  * - パケット内容の解析と統計情報の更新
  * - タイムアウト処理
  * 
+ * ping4_parse_replyとgather_statisticsを複合化した関数の想定
+ * - ipアドレスが期待する送信先か否かのチェックはこの関数の序盤: パケットを受信した後くらいに行う。
+ * - そのあとにprintの処理を行う。
+ * 
  * @return 成功時は0、エラー時は負の値を返す
  */
-int receive_replies_usecase(
-    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error) {
+int receive_replies_usecase(t_receive_replies_dto *dto) {
+  if (dto == NULL) {
+    return (0);
+  }
   ssize_t ret = 0;
+  struct msghdr *msg;
+  msg = dto->msg;
   while (1) {
-    struct timeval *recv_timep = NULL;
-    struct timeval recv_time;
-    int not_ours = 0;
+    // TODO: RTTの計測で使用する
+    // struct timeval *recv_timep = NULL;    
+    // struct timeval recv_time;
 
-    ret = recvmsg(master->socket_state.fd, packet_buffer, *polling);
-    *polling = MSG_DONTWAIT;
-    (void)ret;
-    (void)packet_buffer;
-    (void)packlen;
-    (void)recv_timep;
-    (void)recv_time;
-    (void)not_ours;
-    (void)*recv_error;
-    master->nreceived++;
+    // TODO: 自分のパケットか判断する機構
+    // int not_ours = 0; 
+  
+    dto->iov->iov_len = dto->packlen;
+    memset(msg, 0, sizeof(*msg));
+    msg->msg_name = &dto->addrbuf;
+    msg->msg_namelen = sizeof(dto->addrbuf);
+    msg->msg_iov = dto->iov;
+    msg->msg_iovlen = 1;
+    msg->msg_control = &dto->ans_data;
+    msg->msg_controllen = sizeof(dto->ans_data);
+    ret = recvmsg(*dto->socket_fd, msg, *dto->polling);
+
+    // TODO: 受信したパケットの送信元の確認方法
+    struct sockaddr_in *from = (struct sockaddr_in *)msg->msg_name;
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &from->sin_addr, ip_str, sizeof(ip_str));
+    printf("Received packet from: %s\n", ip_str);
+    *dto->polling = MSG_DONTWAIT;
     break;
   }
+  return (ret);
+}
+
+// int analyse_packet_usecase() {// TODO: 後で実装
+//   return (0);
+// }
+
+int finish_usecase() { // TODO: 後で実装
   return (0);
 }
 

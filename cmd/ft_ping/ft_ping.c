@@ -9,7 +9,8 @@ int entrypoint(int argc, char **argv) {
   t_ping_master master;
   configure_state_usecase(&master);
 
-  t_ping_state state = {
+  // on_exitでスコープ外部からメモリをfreeできるようにするため
+  static t_ping_state state = {
       .is_in_printing_addr = 0,
       .is_exiting = 0,
       .pr_addr_jmp = {},
@@ -59,10 +60,22 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   int next;
   int polling;
   int recv_error;
+
+  // #TODO: ここのアドレスをon_exitで解放できるようにglobal_stateで管理したい
   void *recved_packet = malloc(packet_size);
   if (!recved_packet) {
-    error(1, "malloc failed failed\n");
+    error(1, "malloc failed\n");
   }
+  struct iovec iov;
+  struct msghdr msg;
+  t_receive_replies_dto receive_replies_dto = {
+      .socket_fd = &master->socket_state.fd,
+      .packlen = packet_size,
+      .polling = &polling,
+      .iov = &iov,
+      .msg = &msg};
+  receive_replies_dto.iov->iov_base = (char *)recved_packet;
+
   bzero(recved_packet, packet_size);
   while (1) {
     if (global_state->is_exiting) {
@@ -102,9 +115,11 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
         recv_error = pset.revents & POLLERR;
       }
     }
-    receive_replies_usecase(master, recved_packet, packet_size, &polling, &recv_error);
+    receive_replies_usecase(&receive_replies_dto);
+    (void) recv_error;
   }
   free(recved_packet);
+  recved_packet = NULL;
   // 統計情報を表示
   // finish_usecase();
   return;

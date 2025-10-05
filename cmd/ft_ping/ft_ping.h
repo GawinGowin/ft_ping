@@ -10,6 +10,7 @@
 #endif
 
 #include "icmp.h"
+#include "dto.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -103,8 +104,9 @@ int send_ping_usecase(
 
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
-int receive_replies_usecase(
-    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error);
+int receive_replies_usecase(t_receive_replies_dto *dto);
+// int analyse_packet_usecase(
+//     t_ping_master *master, void *recv_buff, size_t packlen, int *polling, int *recv_error);
 
 /* Infra */
 int is_ipv6_address(const char *addr);
