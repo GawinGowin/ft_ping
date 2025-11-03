@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/uio.h>  /* struct iovec */
+
+typedef struct ping_master t_ping_master;
 
 typedef struct receive_replies_dto {
   int *socket_fd;
@@ -12,16 +15,7 @@ typedef struct receive_replies_dto {
   char ans_data[4096];
   struct iovec *iov;
   struct msghdr *msg;
+  t_ping_master *master;  /* 統計処理用 */
 } t_receive_replies_dto;
-
-// typedef struct receive_replies_dto {
-//   uint16_t expected_cksum;
-//   int expected_packet_ident;
-//   // received_packets_statics *statics;
-// } t_receive_replies_dto;
-
-typedef struct finish_dto {
-
-} t_finish_dto;
 
 #endif /* DTO_H */

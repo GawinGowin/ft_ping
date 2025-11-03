@@ -73,7 +73,8 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
       .packlen = packet_size,
       .polling = &polling,
       .iov = &iov,
-      .msg = &msg};
+      .msg = &msg,
+      .master = master};
   receive_replies_dto.iov->iov_base = (char *)recved_packet;
 
   bzero(recved_packet, packet_size);
@@ -121,7 +122,7 @@ static void main_loop(t_ping_master *master, void *packet_ptr, size_t packet_siz
   free(recved_packet);
   recved_packet = NULL;
   // 統計情報を表示
-  // finish_usecase();
+  finish_statistics_usecase(master);
   return;
 }
 
