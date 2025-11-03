@@ -19,7 +19,15 @@ void configure_state_usecase(t_ping_master *master) {
   master->deadline = 0;
   master->ntransmitted = 0;
   master->nreceived = 0;
+  master->nrepeats = 0;
+  master->nchecksum = 0;
+  master->nerrors = 0;
+  master->tmin = LONG_MAX;
   master->tmax = 0;
+  master->tsum = 0.0;
+  master->tsum2 = 0.0;
+  master->rtt = 0;
+  master->pipesize = 0;
   master->lingertime = 10;
 }
 

@@ -9,8 +9,8 @@
 #define SOL_SOCKET IPPROTO_IP
 #endif
 
-#include "icmp.h"
 #include "dto.h"
+#include "icmp.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -76,7 +76,19 @@ typedef struct ping_master {
   uint16_t ident;
   int ntransmitted;
   int nreceived;
-  int tmax;
+
+  /* statics */
+  long nrepeats;
+  long nchecksum;
+  long nerrors;
+
+  long tmin;    // 最小RTT（マイクロ秒）
+  long tmax;    // 最大RTT（マイクロ秒）
+  double tsum;  // RTTの合計値（平均計算用）
+  double tsum2; // RTT^2の合計値（標準偏差計算用）
+  uint64_t rtt; // 指数加重移動平均RTT（固定小数点、8倍スケール）
+  int pipesize; // 同時送信中のパケット数（最大値）
+
   int lingertime;
   char *hostname;
   unsigned int opt_verbose : 1;
@@ -105,8 +117,7 @@ int send_ping_usecase(
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
 int receive_replies_usecase(t_receive_replies_dto *dto);
-// int analyse_packet_usecase(
-//     t_ping_master *master, void *recv_buff, size_t packlen, int *polling, int *recv_error);
+// int analyse_packet_usecase();
 
 /* Infra */
 int is_ipv6_address(const char *addr);
