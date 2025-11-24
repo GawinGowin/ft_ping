@@ -9,6 +9,7 @@
 #define SOL_SOCKET IPPROTO_IP
 #endif
 
+#include "dto.h"
 #include "icmp.h"
 
 #include <arpa/inet.h>
@@ -37,22 +38,39 @@
 #define MIN_INTERVAL_MS 10
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
 
+/* 重複検出システム */
+#define MAX_DUP_CHK 0x10000  // 65536個のシーケンス番号を追跡
+#define BITMAP_SHIFT 6       // 64bit単位でのビット操作用
+
+typedef uint64_t bitmap_t;
+
+struct rcvd_table {
+  bitmap_t bitmap[MAX_DUP_CHK / (sizeof(bitmap_t) * 8)];
+};
+
+/* ビット操作マクロ */
+#define A(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
+#define B(bit) (((bitmap_t)1) << ((bit) & ((1 << BITMAP_SHIFT) - 1)))
+
 #ifndef HZ
 #define HZ sysconf(_SC_CLK_TCK)
 #endif
-
-typedef struct ping_state {
-  volatile int is_in_printing_addr;
-  volatile unsigned int is_exiting : 1;
-  jmp_buf pr_addr_jmp;
-} t_ping_state;
-
-extern t_ping_state *global_state;
 
 typedef struct socket_st {
   int fd;
   int socktype;
 } t_socket_st;
+
+typedef struct ping_state {
+  volatile int is_in_printing_addr;
+  volatile unsigned int is_exiting : 1;
+  jmp_buf pr_addr_jmp;
+
+  void *allocated_packet_addr;
+  t_socket_st *socket_state;
+} t_ping_state;
+
+extern t_ping_state *global_state;
 
 typedef struct ping_master {
   t_socket_st socket_state;
@@ -69,14 +87,30 @@ typedef struct ping_master {
   size_t sndbuf;
   size_t rcvbuf;
   int deadline;
-
+  uint16_t ident;
   int ntransmitted;
   int nreceived;
-  int tmax;
+
+  /* statics */
+  long nrepeats;
+  long nchecksum;
+  long nerrors;
+
+  long tmin;    // 最小RTT（マイクロ秒）
+  long tmax;    // 最大RTT（マイクロ秒）
+  double tsum;  // RTTの合計値（平均計算用）
+  double tsum2; // RTT^2の合計値（標準偏差計算用）
+  uint64_t rtt; // 指数加重移動平均RTT（固定小数点、8倍スケール）
+  int pipesize; // 同時送信中のパケット数（最大値）
+
+  struct rcvd_table rcvd_tbl; // 重複検出用ビットマップ
+  unsigned int timing : 1;     // RTT測定フラグ
+
   int lingertime;
   char *hostname;
   unsigned int opt_verbose : 1;
   unsigned int opt_adaptive : 1;
+  unsigned int opt_ptimeofday : 1;
   int opt_flood_poll;
 } t_ping_master;
 
@@ -99,8 +133,19 @@ int send_ping_usecase(
 
 int schedule_exit(t_ping_master *master, int next);
 void cleanup_usecase(int status, void *state);
-int receive_replies_usecase(
-    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error);
+int receive_replies_usecase(t_receive_replies_dto *dto);
+
+/* 統計関数群 */
+void gather_statistics_usecase(
+    t_ping_master *master,
+    uint16_t seq,
+    long triptime,
+    int is_duplicate);
+void finish_statistics_usecase(t_ping_master *master);
+
+/* 重複検出ヘルパー関数 */
+void rcvd_set(t_ping_master *master, uint16_t seq);
+bitmap_t rcvd_test(t_ping_master *master, uint16_t seq);
 
 /* Infra */
 int is_ipv6_address(const char *addr);

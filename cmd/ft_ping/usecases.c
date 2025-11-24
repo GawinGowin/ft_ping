@@ -3,6 +3,13 @@
 static void set_socket_buff(t_ping_master *master);
 static int __schedule_exit(t_ping_master *master, int next);
 
+static int parse_reply(
+    t_ping_master *master,
+    void *packet,
+    size_t packet_len,
+    struct sockaddr_in *from,
+    struct timeval *recv_time);
+
 void configure_state_usecase(t_ping_master *master) {
   master->socket_state.fd = -1;
   master->socket_state.socktype = -1;
@@ -19,7 +26,18 @@ void configure_state_usecase(t_ping_master *master) {
   master->deadline = 0;
   master->ntransmitted = 0;
   master->nreceived = 0;
+  master->nrepeats = 0;
+  master->nchecksum = 0;
+  master->nerrors = 0;
+  master->tmin = LONG_MAX;
   master->tmax = 0;
+  master->tsum = 0.0;
+  master->tsum2 = 0.0;
+  master->rtt = 0;
+  master->pipesize = 0;
+  memset(&master->rcvd_tbl, 0, sizeof(master->rcvd_tbl));
+  master->timing = 1;
+  master->ident = 0; // デフォルト識別子（後で設定される）
   master->lingertime = 10;
 }
 
@@ -49,6 +67,10 @@ void show_usage_usecase(void) {
       "  <destination>      dns name or ip address\n"
       "  -A                 use adaptive ping\n"
       "  -c <count>         stop after <count> replies\n"
+      "  -D                 print timestamps\n"
+      "  -e <identifier>    define identifier for ping session, default is random for\n"
+      "                     SOCK_RAW and kernel defined for SOCK_DGRAM\n"
+      "                     Imply using SOCK_RAW (for IPv4 only for identifier 0)\n"
       "  -h                 display this help and exit\n"
       "  -l <preload>       send <preload> number of packages while waiting replies\n"
       "  -Q <tclass>        use quality of service <tclass> bits\n"
@@ -73,6 +95,11 @@ int initialize_usecase(t_ping_master *master, char **argv) {
   // ソケット作成
   if (create_socket(&master->socket_state) < 0) {
     error(1, "Failed to create socket: %s\n", strerror(errno));
+  }
+
+  // 識別子が未設定の場合はプロセスIDを使用
+  if (master->ident == 0) {
+    master->ident = htons(getpid() & 0xFFFF);
   }
   int fd = master->socket_state.fd;
   set_socket_buff(master);
@@ -131,13 +158,16 @@ static void set_socket_buff(t_ping_master *master) {
 
 int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "Ahvt:Q:c:S:s:l:w:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
     case 'A':
       master->opt_adaptive = 1;
       break;
     case 'v':
       master->opt_verbose = 1;
+      break;
+    case 'D':
+      master->opt_ptimeofday = 1;
       break;
     case 't':
       master->ttl = parse_long(optarg, "invalid argument", 1, 255, error);
@@ -147,6 +177,9 @@ int parse_arg_usecase(int *argc, char ***argv, t_ping_master *master) {
       break;
     case 'c':
       master->npackets = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
+      break;
+    case 'e':
+      master->ident = htons((uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
       break;
     case 'S':
       master->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
@@ -248,7 +281,6 @@ static int __schedule_exit(t_ping_master *master, int next) {
 /**
  * ICMP応答パケットを受信し処理するユースケース関数
  * 
- * 日本語説明：
  * ソケットバッファに複数のパケットがたまっている可能性があるため、無限ループでパケットを受信
  * Raw socketならば、ほかの端末からのパケットも受信する可能性がある。
  * 
@@ -258,33 +290,277 @@ static int __schedule_exit(t_ping_master *master, int next) {
  * - パケット内容の解析と統計情報の更新
  * - タイムアウト処理
  * 
+ * ping4_parse_replyとgather_statisticsを複合化した関数の想定
+ * - ipアドレスが期待する送信先か否かのチェックはこの関数の序盤: パケットを受信した後くらいに行う。
+ * - そのあとにprintの処理を行う。
+ * 
  * @return 成功時は0、エラー時は負の値を返す
  */
-int receive_replies_usecase(
-    t_ping_master *master, void *packet_buffer, size_t packlen, int *polling, int *recv_error) {
+int receive_replies_usecase(t_receive_replies_dto *dto) {
+  if (dto == NULL) {
+    return (0);
+  }
   ssize_t ret = 0;
+  struct msghdr *msg;
+  msg = dto->msg;
   while (1) {
-    struct timeval *recv_timep = NULL;
     struct timeval recv_time;
-    int not_ours = 0;
 
-    ret = recvmsg(master->socket_state.fd, packet_buffer, *polling);
-    *polling = MSG_DONTWAIT;
-    (void)ret;
-    (void)packet_buffer;
-    (void)packlen;
-    (void)recv_timep;
-    (void)recv_time;
-    (void)not_ours;
-    (void)*recv_error;
-    master->nreceived++;
+    dto->iov->iov_len = dto->packlen;
+    memset(msg, 0, sizeof(*msg));
+    msg->msg_name = &dto->addrbuf;
+    msg->msg_namelen = sizeof(dto->addrbuf);
+    msg->msg_iov = dto->iov;
+    msg->msg_iovlen = 1;
+    msg->msg_control = &dto->ans_data;
+    msg->msg_controllen = sizeof(dto->ans_data);
+
+    ret = recvmsg(*dto->socket_fd, msg, *dto->polling);
+
+    if (ret < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break; // タイムアウトまたはノンブロッキング
+      }
+      return ret; // エラー
+    }
+
+    // 受信時刻の記録
+    gettimeofday(&recv_time, NULL);
+
+    struct sockaddr_in *from = (struct sockaddr_in *)msg->msg_name;
+
+    // パケット解析と統計更新
+    parse_reply(dto->master, dto->iov->iov_base, ret, from, &recv_time);
+
+    *dto->polling = MSG_DONTWAIT;
     break;
   }
-  return (0);
+  return (ret);
 }
 
-void cleanup_usecase(int status, void *master) {
+/* 重複検出ヘルパー関数 */
+void rcvd_set(t_ping_master *master, uint16_t seq) {
+  unsigned bit = seq % MAX_DUP_CHK;
+  A(&master->rcvd_tbl, bit) |= B(bit);
+}
+
+bitmap_t rcvd_test(t_ping_master *master, uint16_t seq) {
+  unsigned bit = seq % MAX_DUP_CHK;
+  return A(&master->rcvd_tbl, bit) & B(bit);
+}
+
+/**
+ * @brief ICMP応答パケットの統計情報を収集・更新
+ * 
+ * iputils pingのgather_statistics関数を参考に実装
+ * RTT統計、重複検出、各種カウンタの更新を行う
+ * 
+ * @param master ping処理のマスター構造体
+ * @param seq パケットのシーケンス番号
+ * @param triptime RTT（マイクロ秒単位）
+ * @param is_duplicate 重複パケットかどうかのフラグ
+ */
+void gather_statistics_usecase(
+    t_ping_master *master,
+    uint16_t seq __attribute__((__unused__)),
+    long triptime,
+    int is_duplicate) {
+
+  if (is_duplicate) {
+    master->nrepeats++;
+    if (master->opt_verbose) {
+      printf("DUP!\n");
+    }
+    return;
+  }
+
+  master->nreceived++;
+
+  if (master->timing && triptime >= 0) {
+    // RTT統計の更新
+    master->tsum += triptime;
+    master->tsum2 += (double)((long long)triptime * (long long)triptime);
+
+    if (triptime < master->tmin)
+      master->tmin = triptime;
+    if (triptime > master->tmax)
+      master->tmax = triptime;
+
+    // 指数加重移動平均（EWMA）の計算
+    if (!master->rtt)
+      master->rtt = ((uint64_t)triptime) * 8;
+    else
+      master->rtt += triptime - master->rtt / 8;
+  }
+
+  // パイプサイズの更新（同時送信中パケット数の最大値）
+  int pipe = master->ntransmitted - master->nreceived;
+  if (pipe > master->pipesize)
+    master->pipesize = pipe;
+}
+
+/**
+ * @brief 最終統計情報の計算と表示
+ * 
+ * iputils pingのfinish関数を参考に実装
+ * パケット損失率、RTT統計（min/avg/max/mdev）を計算・表示
+ * 
+ * @param master ping処理のマスター構造体
+ */
+void finish_statistics_usecase(t_ping_master *master) {
+  printf("\n--- %s ping statistics ---\n", master->hostname);
+
+  // パケット統計の表示
+  printf("%d packets transmitted, %d received", master->ntransmitted, master->nreceived);
+
+  if (master->nrepeats)
+    printf(", +%ld duplicates", master->nrepeats);
+  if (master->nchecksum)
+    printf(", +%ld corrupted", master->nchecksum);
+  if (master->nerrors)
+    printf(", +%ld errors", master->nerrors);
+
+  // パケット損失率の計算・表示
+  if (master->ntransmitted) {
+    double loss =
+        ((double)(master->ntransmitted - master->nreceived) * 100.0) / master->ntransmitted;
+    printf(", %.1f%% packet loss", loss);
+  }
+
+  printf(", time %dms\n", (int)(master->ntransmitted * master->interval));
+
+  // RTT統計の計算・表示
+  if (master->nreceived && master->timing) {
+    long total = master->nreceived + master->nrepeats;
+    long avg_rtt = master->tsum / total;
+
+    // 分散の計算（オーバーフロー対策）
+    long long variance;
+    if (master->tsum < INT_MAX) {
+      variance = (master->tsum2 - ((master->tsum * master->tsum) / total)) / total;
+    } else {
+      variance = (master->tsum2 / total) - (avg_rtt * avg_rtt);
+    }
+
+    // 標準偏差の計算（ニュートン法による平方根計算）
+    double std_dev = 0.0;
+    if (variance > 0) {
+      double x = variance;
+      double prev;
+      // ニュートン法で平方根を計算
+      do {
+        prev = x;
+        x = (x + variance / x) / 2.0;
+      } while (x < prev && (prev - x) > 0.001); // 収束判定
+      std_dev = x;
+    }
+
+    printf(
+        "rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", master->tmin / 1000.0, avg_rtt / 1000.0,
+        master->tmax / 1000.0, std_dev / 1000.0);
+  }
+}
+
+/**
+ * @brief 受信したICMPパケットを解析し統計情報を更新
+ * 
+ * @param master ping処理のマスター構造体
+ * @param packet 受信パケットデータ
+ * @param packet_len パケット長
+ * @param from 送信元アドレス
+ * @param recv_time 受信時刻
+ * @return 解析結果（0: 成功, 負数: エラー）
+ */
+static int parse_reply(
+    t_ping_master *master,
+    void *packet,
+    size_t packet_len,
+    struct sockaddr_in *from,
+    struct timeval *recv_time) {
+
+  struct icmphdr *icmp;
+  struct iphdr *ip = NULL;
+  int icmp_len;
+
+  // RAWソケットの場合はIPヘッダーをスキップ
+  if (master->socket_state.socktype == SOCK_RAW) {
+    ip = (struct iphdr *)packet;
+    icmp_len = packet_len - (ip->ihl * 4);
+    if (icmp_len < 8) {
+      return -1; // パケットが短すぎる
+    }
+    icmp = (struct icmphdr *)((char *)packet + (ip->ihl * 4));
+  } else {
+    icmp = (struct icmphdr *)packet;
+    icmp_len = packet_len;
+  }
+
+  // ICMPタイプとコードの確認
+  if (icmp->type == ICMP_ECHO) {
+    return -2; // 送信パケット（無視）
+  }
+  if (icmp->type != ICMP_ECHOREPLY) {
+    return -1; // エコー応答ではない
+  }
+
+  // 識別子の確認（自分のパケットか判定）
+  if (icmp->un.echo.id != master->ident) {
+    return -1; // 他のプロセスのパケット
+  }
+
+  uint16_t seq = ntohs(icmp->un.echo.sequence);
+
+  // チェックサムの検証（簡易版）
+  // TODO: 完全なチェックサム検証を実装
+
+  // 重複検出
+  int is_duplicate = rcvd_test(master, seq) ? 1 : 0;
+  if (!is_duplicate) {
+    rcvd_set(master, seq);
+  }
+
+  // RTTの計算
+  long triptime = -1;
+  if (master->timing && icmp_len >= 16) { // タイムスタンプが含まれているかチェック
+    struct timeval *send_time = (struct timeval *)((char *)icmp + 8);
+    triptime = (recv_time->tv_sec - send_time->tv_sec) * 1000000 +
+               (recv_time->tv_usec - send_time->tv_usec);
+  }
+
+  // 統計情報の更新
+  gather_statistics_usecase(master, seq, triptime, is_duplicate);
+
+  // 応答の表示
+  if (master->opt_verbose || !is_duplicate) {
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &from->sin_addr, ip_str, sizeof(ip_str));
+
+    printf("%d bytes from %s: icmp_seq=%u", (int)packet_len, ip_str, seq);
+
+    if (triptime >= 0) {
+      printf(" time=%.3f ms", triptime / 1000.0);
+    }
+
+    if (is_duplicate) {
+      printf(" (DUP!)");
+    }
+
+    printf("\n");
+  }
+
+  return 0;
+}
+
+void cleanup_usecase(int status, void *global_state) {
   (void)status;
-  t_ping_master *st = (t_ping_master *)master;
-  close(st->socket_state.fd);
+  if (global_state == NULL) {
+    return;
+  }
+  t_ping_state *st = (t_ping_state *)global_state;
+  if (st->socket_state != NULL && st->socket_state->fd >= 0) {
+    close(st->socket_state->fd);
+  }
+  if (st->allocated_packet_addr != NULL) {
+    free(st->allocated_packet_addr);
+  }
 }

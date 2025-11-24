@@ -1,6 +1,6 @@
 #include "icmp.h"
 
-static uint16_t calculate_checksum(void *data, int len);
+static uint16_t calculate_checksum(void *data, size_t len);
 
 int set_ip_header(void *packet, struct in_addr src_addr, struct in_addr dest_addr, size_t datalen) {
   if (packet == NULL || datalen <= 0) {
@@ -46,9 +46,9 @@ int set_icmp_header_data(
   }
   icmp_hdr->type = ICMP_ECHO;
   icmp_hdr->code = 0;
-  icmp_hdr->checksum = 0; // 後で計算
+  icmp_hdr->checksum = 0;
   icmp_hdr->un.echo.id = htons(getpid());
-  icmp_hdr->un.echo.sequence = htons(seq);
+  icmp_hdr->un.echo.sequence = htons(seq + 1);
   for (size_t i = 0; i < datalen; i++) {
     payload[i] = (unsigned char)((size_t)i % UCHAR_MAX);
   }
@@ -60,7 +60,7 @@ int set_icmp_header_data(
   return 0;
 }
 
-static uint16_t calculate_checksum(void *data, int len) {
+static uint16_t calculate_checksum(void *data, size_t len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
 
