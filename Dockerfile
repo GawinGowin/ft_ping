@@ -10,10 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	lcov \
 	libcap-dev \
 	meson \
-	nodejs \
-	npm \
-	xsltproc ; \
-  npm install -g @anthropic-ai/claude-code ; \
+	xsltproc
+
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # install google test
 RUN set -x; \
