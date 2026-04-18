@@ -1,22 +1,10 @@
 #include <arpa/inet.h>
-#include <cstring>
-#include <errno.h>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/ip_icmp.h>
-#include <stdexcept>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <string>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <unistd.h>
 
 extern "C" {
-#include "ft_ping.h"
+#include "shared_net.h"
 }
 
 TEST(GetSourceAddressTest, ValidDevice) {

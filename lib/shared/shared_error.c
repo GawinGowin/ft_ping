@@ -1,0 +1,33 @@
+#include "shared_error.h"
+
+#ifndef TESTING
+void error(int status, const char *format, ...) {
+  va_list ap;
+
+  fprintf(stderr, "%s: ", program_invocation_short_name); //  #include <errno.h>
+  va_start(ap, format);
+  vfprintf(stderr, format, ap);
+  va_end(ap);
+  if (status)
+    exit(status);
+}
+#else
+int last_error_status = 0;
+int test_err_jmp_buf_set = 0;
+char last_error_message[256];
+jmp_buf test_err_jmp_buf;
+
+void error(int status, const char *format, ...) {
+  va_list ap;
+
+  memset(last_error_message, 0, sizeof(last_error_message));
+  last_error_status = status;
+  va_start(ap, format);
+  vsnprintf(last_error_message, sizeof(last_error_message), format, ap);
+  va_end(ap);
+  fprintf(stderr, "%s: %s (%d)\n", "test_ft_ping", last_error_message, status);
+  if (status && test_err_jmp_buf_set) {
+    longjmp(test_err_jmp_buf, status);
+  }
+}
+#endif

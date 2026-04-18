@@ -4,7 +4,8 @@
 #include <string>
 
 extern "C" {
-#include "ft_ping.h"
+#include "shared_error.h"
+#include "shared_net.h"
 }
 
 class DnsLookupTest : public ::testing::Test {
