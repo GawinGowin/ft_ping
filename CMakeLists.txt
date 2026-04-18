@@ -31,6 +31,9 @@ target_include_directories(ping_stats PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 add_library(ping_icmp OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_icmp.c)
 target_include_directories(ping_icmp PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 
+add_library(ping_config OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_config.c)
+target_include_directories(ping_config PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+
 add_executable(ft_ping ${SOURCES})
 
 target_include_directories(
@@ -38,7 +41,6 @@ target_include_directories(
   PRIVATE ${CMAKE_SOURCE_DIR}/cmd/ft_ping
 )
 
-target_link_libraries(ft_ping PRIVATE vsock)
 target_link_libraries(ft_ping PRIVATE vsock shared)
 
 enable_testing()

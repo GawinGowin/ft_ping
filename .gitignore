@@ -225,6 +225,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-CLAUDE.md
-.claude/
-.claude.json
+.claude.local.json

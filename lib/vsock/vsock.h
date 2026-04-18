@@ -21,7 +21,7 @@ typedef struct ip_icmp {
   struct icmphdr icmp;
 } t_ip_icmp;
 
-typedef struct {
+typedef struct build_ctx {
   uint16_t seq;
   size_t datalen;
   struct timeval *ts;
