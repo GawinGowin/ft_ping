@@ -33,8 +33,7 @@ endif()
 
 target_include_directories(InternalTests PRIVATE
   ${CMAKE_SOURCE_DIR}/cmd/ft_ping
-  ${CMAKE_SOURCE_DIR}/lib/vsock
-  ${CMAKE_SOURCE_DIR}/lib/shared
+  ${CMAKE_SOURCE_DIR}/lib
   ${gtest_SOURCE_DIR}
 )
 

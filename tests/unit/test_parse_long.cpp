@@ -4,8 +4,8 @@
 #include <string>
 
 extern "C" {
-#include "shared_parse.h"
-#include "shared_error.h"
+#include "shared/shared_parse.h"
+#include "shared/shared_error.h"
 }
 
 namespace {
