@@ -14,8 +14,8 @@ struct rcvd_table {
 };
 
 /* ビット操作マクロ */
-#define A(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
-#define B(bit) (((bitmap_t)1) << ((bit) & ((1 << BITMAP_SHIFT) - 1)))
+#define BITMAP_WORD(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
+#define BITMAP_MASK(bit) (((bitmap_t)1) << ((bit) & ((1 << BITMAP_SHIFT) - 1)))
 
 typedef struct ftping_session t_ftping_session; // 前方宣言
 
