@@ -47,7 +47,6 @@ typedef struct ping_socket_ops {
 extern t_ping_socket_ops Ping_socket_raw_ops;
 extern t_ping_socket_ops Ping_socket_dgram_ops;
 
-uint16_t calculate_checksum(void *data, size_t len);
 int ping_socket_select(t_socket_st *socket_state);
 
 #endif /* VSOCK_H */

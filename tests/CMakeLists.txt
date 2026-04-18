@@ -26,7 +26,7 @@ file(GLOB_RECURSE TEST_SOURCES
 add_executable(ft_ping_test ${TEST_SOURCES})
 
 if(GTest_FOUND)
-  target_link_libraries(ft_ping_test testftping vsock shared ping_stats GTest::GTest GTest::Main)
+  target_link_libraries(ft_ping_test testftping vsock shared ping_stats ping_icmp GTest::GTest GTest::Main)
 else()
   target_link_libraries(ft_ping_test testftping vsock shared ping_stats gtest gtest_main)
 endif()

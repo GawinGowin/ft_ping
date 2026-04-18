@@ -28,6 +28,9 @@ add_subdirectory(lib/vsock)
 add_library(ping_stats OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_stats.c)
 target_include_directories(ping_stats PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 
+add_library(ping_icmp OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_icmp.c)
+target_include_directories(ping_icmp PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+
 add_executable(ft_ping ${SOURCES})
 
 target_include_directories(
