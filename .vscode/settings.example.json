@@ -7,7 +7,7 @@
   "cmake.configureOnEdit": false,
   "cmake.ctest.testExplorerIntegrationEnabled": false,
   "editor.formatOnSave": true,
-  "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*",
+  "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*", // 環境によってはフルパスで記載がよい
   "C_Cpp.clang_format_path": "/usr/bin/clang-format",
   "C_Cpp.clang_format_style": "file:./.clang-format",
   "C/C++ Include Guard.Macro Type": "Filename",

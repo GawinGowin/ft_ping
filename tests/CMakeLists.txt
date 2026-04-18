@@ -22,20 +22,20 @@ file(GLOB_RECURSE TEST_SOURCES
 "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 )
 
-#..:: InternalTests ::..
-add_executable(InternalTests ${TEST_SOURCES})
+#..:: ft_ping_test ::..
+add_executable(ft_ping_test ${TEST_SOURCES})
 
 if(GTest_FOUND)
-  target_link_libraries(InternalTests testftping vsock shared GTest::GTest GTest::Main)
+  target_link_libraries(ft_ping_test testftping vsock shared ping_stats GTest::GTest GTest::Main)
 else()
-  target_link_libraries(InternalTests testftping vsock shared gtest gtest_main)
+  target_link_libraries(ft_ping_test testftping vsock shared ping_stats gtest gtest_main)
 endif()
 
-target_include_directories(InternalTests PRIVATE
+target_include_directories(ft_ping_test PRIVATE
   ${CMAKE_SOURCE_DIR}/cmd/ft_ping
   ${CMAKE_SOURCE_DIR}/lib
   ${gtest_SOURCE_DIR}
 )
 
 # ..:: GoogleTest ::..
-gtest_add_tests(TARGET InternalTests)
+gtest_add_tests(TARGET ft_ping_test)

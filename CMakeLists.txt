@@ -25,6 +25,9 @@ target_compile_definitions(testftping PUBLIC TESTING=1)
 add_subdirectory(lib/shared)
 add_subdirectory(lib/vsock)
 
+add_library(ping_stats OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_stats.c)
+target_include_directories(ping_stats PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+
 add_executable(ft_ping ${SOURCES})
 
 target_include_directories(
@@ -33,7 +36,7 @@ target_include_directories(
 )
 
 target_link_libraries(ft_ping PRIVATE vsock)
-# target_link_libraries(ft_ping PRIVATE vsock shared)
+target_link_libraries(ft_ping PRIVATE vsock shared)
 
 enable_testing()
 add_subdirectory(tests)
