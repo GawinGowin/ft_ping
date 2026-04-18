@@ -26,13 +26,14 @@ file(GLOB_RECURSE TEST_SOURCES
 add_executable(InternalTests ${TEST_SOURCES})
 
 if(GTest_FOUND)
-  target_link_libraries(InternalTests testftping GTest::GTest GTest::Main)
+  target_link_libraries(InternalTests testftping vsock GTest::GTest GTest::Main)
 else()
-  target_link_libraries(InternalTests testftping gtest gtest_main)
+  target_link_libraries(InternalTests testftping vsock gtest gtest_main)
 endif()
 
-target_include_directories(InternalTests PRIVATE 
+target_include_directories(InternalTests PRIVATE
   ${CMAKE_SOURCE_DIR}/cmd/ft_ping
+  ${CMAKE_SOURCE_DIR}/lib/vsock
   ${gtest_SOURCE_DIR}
 )
 

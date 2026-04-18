@@ -15,8 +15,15 @@ file(GLOB_RECURSE SOURCES
 
 message(STATUS "SOURCES: ${SOURCES}")
 
+add_library(testftping ${SOURCES}) 
+target_include_directories(
+  testftping
+  PRIVATE ${CMAKE_SOURCE_DIR}/cmd/ft_ping
+)
+target_compile_definitions(testftping PUBLIC TESTING=1)
+
 # add_subdirectory(lib/shared)
-# add_subdirectory(lib/vsock)
+add_subdirectory(lib/vsock)
 
 add_executable(ft_ping ${SOURCES})
 
@@ -24,8 +31,9 @@ target_include_directories(
   ft_ping
   PRIVATE ${CMAKE_SOURCE_DIR}/cmd/ft_ping
 )
-# target_link_libraries(ft_ping ${LIBRARIES})
-target_link_libraries(ft_ping PRIVATE vsock shared)
+
+target_link_libraries(ft_ping PRIVATE vsock)
+# target_link_libraries(ft_ping PRIVATE vsock shared)
 
 enable_testing()
 add_subdirectory(tests)
