@@ -6,6 +6,7 @@
 
 ft_ping
 !cmd/ft_ping/
+!include/ft_ping/
 ft_ping_debug
 
 # Prerequisites
