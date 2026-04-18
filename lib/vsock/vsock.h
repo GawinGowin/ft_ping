@@ -11,8 +11,10 @@
 #include <netinet/ip_icmp.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 typedef struct ip_icmp {
   struct iphdr ip;
@@ -45,6 +47,7 @@ typedef struct ping_socket_ops {
 extern t_ping_socket_ops Ping_socket_raw_ops;
 extern t_ping_socket_ops Ping_socket_dgram_ops;
 
+uint16_t calculate_checksum(void *data, size_t len);
 int ping_socket_select(t_socket_st *socket_state);
 
 #endif /* VSOCK_H */

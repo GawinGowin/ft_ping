@@ -22,7 +22,7 @@ int build_packet_dgram(void *packet, const t_build_ctx *ctx) {
   return 0;
 }
 
-int extract_icmp_dgram(void *packet, size_t packet_len, int *icmp_len_out) {
+struct icmphdr *extract_icmp_dgram(void *packet, size_t packet_len, int *icmp_len_out) {
   *icmp_len_out = packet_len;
   return (struct icmphdr *)packet;
 }
