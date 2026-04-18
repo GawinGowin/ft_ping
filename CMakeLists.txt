@@ -22,7 +22,7 @@ target_include_directories(
 )
 target_compile_definitions(testftping PUBLIC TESTING=1)
 
-# add_subdirectory(lib/shared)
+add_subdirectory(lib/shared)
 add_subdirectory(lib/vsock)
 
 add_executable(ft_ping ${SOURCES})

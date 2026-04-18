@@ -4,7 +4,8 @@
 #include <string>
 
 extern "C" {
-#include "ft_ping.h"
+#include "shared_parse.h"
+#include "shared_error.h"
 }
 
 namespace {
