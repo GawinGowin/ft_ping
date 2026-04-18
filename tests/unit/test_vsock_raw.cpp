@@ -3,7 +3,7 @@
 #include <sys/time.h>
 
 extern "C" {
-#include "vsock.h"
+#include "vsock/vsock.h"
 }
 
 class VsockRawOpsTest : public ::testing::Test {

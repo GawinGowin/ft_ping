@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 extern "C" {
-#include "shared_net.h"
+#include "shared/shared_net.h"
 }
 
 class IsIpv6AddressTest : public ::testing::Test {};

@@ -2,7 +2,7 @@
 #include <errno.h>
 
 extern "C" {
-#include "vsock.h"
+#include "vsock/vsock.h"
 }
 
 class VsockSelectTest : public ::testing::Test {};

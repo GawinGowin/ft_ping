@@ -1,5 +1,5 @@
-#include "shared_net.h"
-#include "shared_error.h"
+#include "shared/shared_net.h"
+#include "shared/shared_error.h"
 
 void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   struct addrinfo hints = {

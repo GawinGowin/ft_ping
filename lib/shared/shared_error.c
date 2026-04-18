@@ -1,4 +1,4 @@
-#include "shared_error.h"
+#include "shared/shared_error.h"
 
 #ifndef TESTING
 void error(int status, const char *format, ...) {

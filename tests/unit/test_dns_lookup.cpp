@@ -4,8 +4,8 @@
 #include <string>
 
 extern "C" {
-#include "shared_error.h"
-#include "shared_net.h"
+#include "shared/shared_error.h"
+#include "shared/shared_net.h"
 }
 
 class DnsLookupTest : public ::testing::Test {

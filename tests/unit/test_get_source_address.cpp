@@ -4,7 +4,7 @@
 #include <string>
 
 extern "C" {
-#include "shared_net.h"
+#include "shared/shared_net.h"
 }
 
 TEST(GetSourceAddressTest, ValidDevice) {
