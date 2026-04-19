@@ -1,6 +1,6 @@
 #include "ping_config.h"
 
-void ping_config_init(ping_config_t *config) {
+void ping_config_init(t_ping_config *config) {
   config->datalen = 56;
   config->ttl = 64;
   config->hostname = NULL;

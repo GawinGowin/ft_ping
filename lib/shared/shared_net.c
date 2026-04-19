@@ -56,17 +56,6 @@ void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const
   return;
 }
 
-/**
- * @brief pingソケットのタイムアウトを設定する
- *
- * この関数は、指定された間隔に基づいてpingソケットのタイムアウト値を設定します。
- * ping操作の適切な動作を保証するために、送信と受信の両方のタイムアウトを設定します。
- * フラッドモードが有効な場合、それに応じてポーリング機構を調整します。
- *
- * @param sockfd 設定するソケットファイルディスクリプタ
- * @param interval pingパケット間の時間間隔（ミリ秒）
- * @param opt_flood_poll フラッドポーリングオプションフラグへのポインタ、フラッドモードがアクティブな場合更新される
- */
 void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll) {
   struct timeval tv;
   tv.tv_sec = 1;
@@ -89,4 +78,14 @@ int is_ipv6_address(const char *addr) {
   }
   struct in6_addr ipv6_addr;
   return inet_pton(AF_INET6, addr, &ipv6_addr) == 1;
+}
+
+uint16_t inet_checksum(void *data, size_t len) {
+  uint32_t sum = 0;
+  uint16_t *ptr = data;
+  while (len > 1) { sum += *ptr++; len -= 2; }
+  if (len == 1) sum += *(uint8_t *)ptr;
+  sum = (sum >> 16) + (sum & 0xffff);
+  sum += (sum >> 16);
+  return (uint16_t)~sum;
 }

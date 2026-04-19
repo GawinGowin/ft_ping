@@ -121,7 +121,6 @@ ft_ping/
 │   │   ├── shared_error.c/h     #     error()関数
 │   │   ├── shared_parse.c/h     #     parse_long()
 │   │   └── shared_net.c/h       #     DNS解決・送信元アドレス取得
-│   └── ping_internal.h        #   lib内部ヘッダー（src/からは参照しない）
 │
 ├── src/                       # CLIツール（lib/の公開APIのみ使用）
 │   ├── tool_main.c            #   main() + エントリーポイント
@@ -176,40 +175,105 @@ graph LR
 
 ## 4. 依存関係の方向
 
-curlと同じ**一方向依存**を徹底する：
+curlと同じ**一方向依存**を徹底する。curlでは `lib/multi.c` や `lib/easy.c` が `vtls/vtls.h` を直接インクルードしているように、ft_pingでも `lib/ping_loop.c` は `vsock/vsock.h` を直接インクルードしてよい。
 
 ```mermaid
 graph TB
-    SRC["src/ （CLIツール）"]
+    SRC["src/ （CLIツール・コンポジションルート）"]
     INC["include/ft_ping/ （公開API）"]
-    LIB["lib/ （ライブラリ本体）"]
-    VSOCK["lib/vsock/ （ソケット抽象化）"]
+    LIB["lib/ping_loop.c 等"]
+    VSOCK_H["lib/vsock/vsock.h<br/>（struct ping_socket_ops + ping_socket_select 宣言）"]
+    VSOCK_IMPL["lib/vsock/vsock_raw.c<br/>lib/vsock/vsock_dgram.c"]
     SHARED["lib/shared/ （共有ユーティリティ）"]
 
     SRC -->|"公開APIのみ"| INC
-    SRC -->|"shared/も使用可"| SHARED
-    INC -.->|"型定義"| LIB
-    LIB -->|"vtable経由"| VSOCK
+    SRC -->|"ping_socket_select() を呼ぶ"| VSOCK_H
+    LIB -->|"✅ 直接 #include（curlのlib/multi.c→vtls/vtls.hと同じ）"| VSOCK_H
+    LIB -->|"ops->build_packet() 等を呼ぶ"| VSOCK_H
     LIB --> SHARED
-    VSOCK --> SHARED
+    VSOCK_IMPL -->|"#include"| VSOCK_H
+    VSOCK_H --> SHARED
 
+    LIB -.->|"❌ ping_socket_select() は呼ばない"| VSOCK_H
     LIB -.->|"❌ 参照しない"| SRC
 
     style SRC fill:#4caf50,stroke:#333,color:#fff
     style INC fill:#ffa94a,stroke:#333
     style LIB fill:#4a9eff,stroke:#333,color:#fff
-    style VSOCK fill:#ffa94a,stroke:#333
+    style VSOCK_H fill:#ffa94a,stroke:#333
+    style VSOCK_IMPL fill:#ff9800,stroke:#333,color:#fff
     style SHARED fill:#9c27b0,stroke:#333,color:#fff
 ```
 
 **ルール：**
 - `lib/` は `src/` を一切 `#include` しない
-- `src/` は `lib/` の公開API（`include/ft_ping/ft_ping.h`）経由でのみアクセス
+- `lib/ping_loop.c` は `vsock/vsock.h` を直接インクルードしてよい（`shared/*.h` と同じ扱い）
+- `lib/ping_loop.c` は `ping_socket_select()` を**呼ばない**（宣言が見えていても呼ばない規律はコードで守る）
+- `ping_socket_select()` を呼ぶのは `src/tool_main.c`（コンポジションルート）のみ
 - `lib/shared/` は `src/` と `lib/` の両方から使用可能（curlxパターン）
+
+### curlとの対応
+
+| curl | ft_ping | 役割 |
+|------|---------|------|
+| `lib/vtls/vtls.h` | `lib/vsock/vsock.h` | lib/が直接インクルードする公開インターフェース |
+| `lib/vtls/vtls_int.h` | **不要** | curlはバックエンドの内部データが複雑なため分離。ft_pingのバックエンドは単純なので不要 |
+| `lib/multi.c` → `vtls/vtls.h` | `lib/ping_loop.c` → `vsock/vsock.h` | 直接インクルードのパターン |
 
 ---
 
-## 5. vtable方式によるソケット種別抽象化
+## 5. `ping_internal.h` は不要
+
+当初の設計では `lib/ping_internal.h` に `struct ping_socket_ops` を置き、`vsock.h` からそれをインクルードする構成が提案されていた。しかし、この分離は不要である。
+
+### 問題の所在
+
+「`lib/ping_loop.c` が `vsock.h` をインクルードすると `ping_socket_select()` も見えてしまう」というのが分離の動機だったが、**C言語ではヘッダーをインクルードしても関数を呼ぶことを強制されない**。`shared/shared_net.h` をインクルードしても `dns_lookup()` を呼ぶかどうかはコード次第であるのと同じである。
+
+```mermaid
+graph TD
+    ping_loop["lib/ping_loop.c"]
+    ping_internal["lib/ping_internal.h<br/>(struct ping_socket_ops のみ)"]
+    vsock_h["lib/vsock/vsock.h<br/>(ping_socket_select の宣言も含む)"]
+    vsock_impl["lib/vsock/vsock_raw.c<br/>lib/vsock/vsock_dgram.c"]
+    shared_h["lib/shared/shared_*.h<br/>(dns_lookup, send_packet 等)"]
+
+    ping_loop -->|"✅ include"| ping_internal
+    ping_loop -->|"❌ includeしない<br/>(ping_socket_selectを見せたくない)"| vsock_h
+    ping_loop -->|"✅ include（呼ばない関数も宣言されているが問題なし）"| shared_h
+    vsock_h --> ping_internal
+    vsock_impl --> vsock_h
+
+    style ping_internal fill:#ff6b6b,stroke:#333,color:#fff
+```
+
+`shared_*.h` は「見えているが呼ばない」で許容されているのに、`vsock.h` だけ「見せてはいけない」とするのは一貫していない。
+
+### シンプル化した構成
+
+`struct ping_socket_ops` を `vsock.h` に直接置き、`lib/ping_loop.c` はそのまま `vsock.h` をインクルードする。`ping_internal.h` は削除する。
+
+```mermaid
+graph TD
+    ping_loop["lib/ping_loop.c"]
+    vsock_h["lib/vsock/vsock.h<br/>(struct ping_socket_ops<br/>+ ping_socket_select の宣言)"]
+    vsock_impl["lib/vsock/vsock_raw.c<br/>lib/vsock/vsock_dgram.c"]
+    shared_h["lib/shared/shared_*.h"]
+
+    ping_loop -->|"✅ include<br/>（呼ばない規律はコードで守る）"| vsock_h
+    ping_loop -->|"✅ include"| shared_h
+    vsock_impl -->|"include"| vsock_h
+
+    style vsock_h fill:#4a9eff,stroke:#333,color:#fff
+```
+
+**ルール：** `lib/ping_loop.c` は `vsock.h` をインクルードしてよいが、`ping_socket_select()` を**呼ばない**。この規律はコードで守る。コンパイラによる強制は不要（`shared_*.h` と同じ扱い）。
+
+これはcurlの実装と一致する。curlでは `lib/multi.c` が `vtls/vtls.h` を直接インクルードしており、バックエンド選択関数の宣言が見えていても `lib/` から呼ばれることはない。「分離専用ヘッダー（`ping_internal.h`相当）」はcurlにも存在しない。
+
+---
+
+## 6. vtable方式によるソケット種別抽象化
 
 ### 現状の問題
 
@@ -359,14 +423,14 @@ ops->extract_icmp(recv_buf, recv_len, &icmp, &icmp_len);
 
 ---
 
-## 6. 公開API設計
+## 7. 公開API設計
 
 curlの `include/curl/curl.h` に倣い、ライブラリとしての公開APIを定義する：
 
 ```c
 /* include/ft_ping/ft_ping.h */
-#ifndef FTPING_H
-#define FTPING_H
+#ifndef FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
+#define FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
 
 #include <netinet/in.h>
 #include <stdint.h>
@@ -400,13 +464,13 @@ typedef struct ftping_session ftping_session_t;  /* opaque */
 /* ── 公開API ── */
 
 ftping_session_t *ftping_init(const ftping_config_t *config);
-int               ftping_run(ftping_session_t *session);
+int               ping_run(ftping_session_t *session);
 ftping_stats_t    ftping_get_stats(const ftping_session_t *session);
 void              ftping_stop(ftping_session_t *session);
 void              ftping_cleanup(ftping_session_t *session);
 const char       *ftping_strerror(int errcode);
 
-#endif /* FTPING_H */
+#endif /* FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD */
 ```
 
 **CLIツール（`src/`）からの使用例：**
@@ -418,7 +482,7 @@ const char       *ftping_strerror(int errcode);
 int main(int argc, char **argv) {
     ftping_config_t config = parse_args(argc, argv);
     ftping_session_t *session = ftping_init(&config);
-    ftping_run(session);
+    ping_run(session);
     ftping_stats_t stats = ftping_get_stats(session);
     print_statistics(&stats);
     ftping_cleanup(session);
@@ -427,7 +491,7 @@ int main(int argc, char **argv) {
 
 ---
 
-## 7. ファイル名プレフィックス規則
+## 8. ファイル名プレフィックス規則
 
 curlの命名規則を参考にした一貫したプレフィックス：
 
@@ -440,7 +504,7 @@ curlの命名規則を参考にした一貫したプレフィックス：
 
 ---
 
-## 8. ヘッダーのインクルードガード規則
+## 9. ヘッダーのインクルードガード規則
 
 curlに倣い、公開/内部で異なるプレフィックスを使用：
 
@@ -457,7 +521,7 @@ curlに倣い、公開/内部で異なるプレフィックスを使用：
 
 ---
 
-## 9. 構造体の再設計
+## 10. 構造体の再設計
 
 curlの `struct Curl_easy`（セッション状態）に倣い、`t_ping_master` を分解：
 
@@ -515,58 +579,62 @@ classDiagram
 
 ---
 
-## 10. データフロー（提案後）
+## 11. データフロー（提案後）
+
+`src/tool_main.c`（コンポジションルート）が `ping_socket_select()` を呼び、得た `ops*` を `ftping_init()` に渡す。`lib/ping_loop.c` は `ping_socket_select()` を呼ばない。
 
 ```mermaid
 sequenceDiagram
-    participant CLI as src/tool_main.c
-    participant API as include/ft_ping.h
-    participant Lib as lib/ping_loop.c
-    participant VTbl as lib/vsock/vsock.c
-    participant Raw as lib/vsock/vsock_raw.c
+    participant CLI as src/tool_main.c<br/>（コンポジションルート）
+    participant VTbl as lib/vsock/vsock.c<br/>（ファクトリー）
+    participant Raw as lib/vsock/vsock_raw.c<br/>（実装）
+    participant Lib as lib/ping_loop.c<br/>（ライブラリ）
     participant Stats as lib/ping_stats.c
 
-    CLI->>API: ftping_init(&config)
-    API->>Lib: セッション作成
-    Lib->>VTbl: ping_socket_select()
-    VTbl->>Raw: Ping_socket_raw.create()
-    Raw-->>VTbl: fd
-    VTbl-->>Lib: &Ping_socket_raw
-    Lib-->>CLI: session
+    note over CLI,VTbl: ① src/ がソケット実装を選択（lib/ は関与しない）
+    CLI->>VTbl: ping_socket_select()
+    VTbl->>Raw: socket(SOCK_RAW) を試みる
+    Raw-->>VTbl: fd (成功)
+    VTbl-->>CLI: &Ping_socket_raw_ops
 
-    CLI->>API: ftping_run(session)
+    note over CLI,Lib: ② ops* を lib/ に注入（依存性注入）
+    CLI->>Lib: ftping_init(&config, ops)
+    Lib-->>CLI: session（ops* を内部で保持）
+
+    note over CLI,Stats: ③ lib/ は ops* 経由で動く。実装型を知らない
+    CLI->>Lib: ping_run(session)
     loop ping loop
-        Lib->>Raw: ops->build_packet()
+        Lib->>Raw: ops->build_packet()（vtable経由）
         Lib->>Raw: sendto()
         Lib->>Raw: recvmsg()
-        Lib->>Raw: ops->extract_icmp()
+        Lib->>Raw: ops->extract_icmp()（vtable経由）
         Lib->>Stats: ping_stats_gather()
     end
     Lib-->>CLI: 0 (success)
 
-    CLI->>API: ftping_get_stats(session)
-    API->>Stats: 統計計算
+    CLI->>Lib: ftping_get_stats(session)
+    Lib->>Stats: 統計計算
     Stats-->>CLI: ftping_stats_t
 
-    CLI->>API: ftping_cleanup(session)
+    CLI->>Lib: ftping_cleanup(session)
 ```
 
 ---
 
-## 11. 既存コードからの移行マッピング
+## 12. 既存コードからの移行マッピング
 
 | 現在のファイル | 移行先 | 備考 |
 |-------------|--------|------|
 | `cmd/ft_ping/ft_ping.c` (main) | `src/tool_main.c` | CLIエントリーポイント |
-| `cmd/ft_ping/ft_ping.c` (main_loop) | `lib/ping_loop.c` | ライブラリ側に移動 |
-| `cmd/ft_ping/ft_ping.c` (pinger) | `lib/ping_loop.c` | static変数を構造体メンバに |
+| `cmd/ft_ping/ft_ping.c` (main_loop) | `lib/ping_loop.c` → `ping_run()` | ライブラリ側に移動 |
+| `cmd/ft_ping/ft_ping.c` (pinger) | `lib/ping_loop.c` → `ping_send_one()` | static変数を構造体メンバに |
 | `cmd/ft_ping/usecases.c` (configure_state) | `lib/ping_config.c` | |
 | `cmd/ft_ping/usecases.c` (parse_arg) | `src/tool_getparam.c` | CLI側の責任 |
 | `cmd/ft_ping/usecases.c` (signal_handler) | `src/tool_signal.c` | CLI側の責任 |
-| `cmd/ft_ping/usecases.c` (initialize) | `lib/ping_loop.c` | ソケット初期化 |
+| `cmd/ft_ping/usecases.c` (initialize) | `lib/ping_loop.c` → `ftping_init()` | ソケット初期化 |
 | `cmd/ft_ping/usecases.c` (gather_statistics) | `lib/ping_stats.c` | |
 | `cmd/ft_ping/usecases.c` (finish_statistics) | `lib/ping_stats.c` | |
-| `cmd/ft_ping/usecases.c` (receive_replies) | `lib/ping_loop.c` | |
+| `cmd/ft_ping/usecases.c` (receive_replies) | `lib/ping_loop.c` → `ping_receive_replies()` | |
 | `cmd/ft_ping/usecases.c` (parse_reply) | `lib/ping_icmp.c` | |
 | `cmd/ft_ping/usecases.c` (schedule_exit) | `lib/ping_schedule.c` | |
 | `cmd/ft_ping/usecases.c` (show_usage) | `src/tool_getparam.c` | |
@@ -585,7 +653,7 @@ sequenceDiagram
 
 ---
 
-## 12. テスト戦略
+## 13. テスト戦略
 
 ### 現状のテスト構成
 
@@ -1076,7 +1144,7 @@ make cov
 
 ---
 
-## 13. 将来の拡張ポイント
+## 14. 将来の拡張ポイント
 
 この構造が整えば、以下の拡張がアダプター追加だけで実現できる：
 
@@ -1091,7 +1159,7 @@ make cov
 
 ---
 
-## 14. まとめ：curlとft_pingの設計対応
+## 15. まとめ：curlとft_pingの設計対応
 
 ```mermaid
 graph TB

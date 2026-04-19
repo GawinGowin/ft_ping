@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <errno.h>
+#include <gtest/gtest.h>
 
 extern "C" {
 #include "vsock/vsock.h"
@@ -18,11 +18,12 @@ TEST_F(VsockSelectTest, SelectSetsValidFdAndOps) {
 
   EXPECT_GE(state.fd, 0);
   EXPECT_NE(state.ops, nullptr);
-  EXPECT_TRUE(state.socktype == SOCK_RAW || state.socktype == SOCK_DGRAM);
+  EXPECT_TRUE(state.ops == &Ping_socket_raw_ops || state.ops == &Ping_socket_dgram_ops);
   close(state.fd);
 }
 
 // SOCK_RAW が取れたとき ops は raw_ops を指すこと
+// 実行方法: sudo [テスト実行ファイル名] --gtest_filter="VsockSelectTest.RawSocketGetsRawOps"
 TEST_F(VsockSelectTest, RawSocketGetsRawOps) {
   t_socket_st state = {};
   int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -32,7 +33,6 @@ TEST_F(VsockSelectTest, RawSocketGetsRawOps) {
   close(fd);
 
   ping_socket_select(&state);
-  EXPECT_EQ(state.socktype, SOCK_RAW);
   EXPECT_EQ(state.ops, &Ping_socket_raw_ops);
   close(state.fd);
 }
@@ -55,7 +55,6 @@ TEST_F(VsockSelectTest, DgramSocketGetsDgramOps) {
     GTEST_SKIP() << "neither RAW nor DGRAM socket available";
   }
 
-  EXPECT_EQ(state.socktype, SOCK_DGRAM);
   EXPECT_EQ(state.ops, &Ping_socket_dgram_ops);
   close(state.fd);
 }
@@ -69,12 +68,6 @@ TEST_F(VsockSelectTest, OpsMatchSocktype) {
     GTEST_SKIP() << "socket not available";
   }
 
-  if (state.socktype == SOCK_RAW) {
-    EXPECT_EQ(state.ops, &Ping_socket_raw_ops);
-  } else if (state.socktype == SOCK_DGRAM) {
-    EXPECT_EQ(state.ops, &Ping_socket_dgram_ops);
-  } else {
-    FAIL() << "unexpected socktype: " << state.socktype;
-  }
+  EXPECT_TRUE(state.ops == &Ping_socket_raw_ops || state.ops == &Ping_socket_dgram_ops);
   close(state.fd);
 }

@@ -1,24 +1,6 @@
 #include "ping_icmp.h"
 
-#include <arpa/inet.h>
-#include <limits.h>
-#include <string.h>
-#include <unistd.h>
-
-uint16_t ping_icmp_checksum(void *data, size_t len) {
-  uint32_t sum = 0;
-  uint16_t *ptr = data;
-
-  while (len > 1) {
-    sum += *ptr++;
-    len -= 2;
-  }
-  if (len == 1)
-    sum += *(uint8_t *)ptr;
-  sum = (sum >> 16) + (sum & 0xffff);
-  sum += (sum >> 16);
-  return (uint16_t)~sum;
-}
+#include "shared/shared_net.h"
 
 void ping_icmp_build_echo(
     struct icmphdr *icmp_hdr,
@@ -35,5 +17,5 @@ void ping_icmp_build_echo(
     payload[i] = (unsigned char)(i % UCHAR_MAX);
   if (datalen >= sizeof(*ts))
     memcpy(payload, ts, sizeof(*ts));
-  icmp_hdr->checksum = ping_icmp_checksum(icmp_hdr, sizeof(struct icmphdr) + datalen);
+  icmp_hdr->checksum = inet_checksum(icmp_hdr, sizeof(struct icmphdr) + datalen);
 }

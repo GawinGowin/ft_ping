@@ -7,57 +7,58 @@
 
 extern "C" {
 #include "ping_icmp.h"
+#include "shared/shared_net.h"
 }
 
 // ---------------------------------------------------------------------------
-// ping_icmp_checksum
+// inet_checksum
 // ---------------------------------------------------------------------------
 
 TEST(ChecksumTest, AllZeroesIsMaxValue) {
   uint8_t data[4] = {0, 0, 0, 0};
-  uint16_t cs = ping_icmp_checksum(data, sizeof(data));
+  uint16_t cs = inet_checksum(data, sizeof(data));
   EXPECT_EQ(cs, 0xffff);
 }
 
 TEST(ChecksumTest, ApplyingTwiceYieldsZero) {
   // RFC 1071: checksum of data + its own checksum == 0
   uint8_t data[8] = {0x08, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x00};
-  uint16_t cs = ping_icmp_checksum(data, sizeof(data));
+  uint16_t cs = inet_checksum(data, sizeof(data));
   // embed checksum and re-verify
   uint16_t *cs_field = (uint16_t *)(data + 2);
   *cs_field = cs;
-  uint16_t verify = ping_icmp_checksum(data, sizeof(data));
+  uint16_t verify = inet_checksum(data, sizeof(data));
   EXPECT_EQ(verify, 0);
 }
 
 TEST(ChecksumTest, OddLengthHandledCorrectly) {
   uint8_t data[3] = {0x00, 0x01, 0x02};
   // should not crash and must return consistent result
-  uint16_t cs1 = ping_icmp_checksum(data, sizeof(data));
-  uint16_t cs2 = ping_icmp_checksum(data, sizeof(data));
+  uint16_t cs1 = inet_checksum(data, sizeof(data));
+  uint16_t cs2 = inet_checksum(data, sizeof(data));
   EXPECT_EQ(cs1, cs2);
 }
 
 TEST(ChecksumTest, SingleByteAllOnes) {
   uint8_t data[1] = {0xff};
-  uint16_t cs = ping_icmp_checksum(data, 1);
+  uint16_t cs = inet_checksum(data, 1);
   EXPECT_EQ(cs, (uint16_t)~0x00ff);
 }
 
 TEST(ChecksumTest, KnownEchoHeader) {
   // type=8 code=0 checksum=0 id=1 seq=1  (ping echo request for id=1 seq=1)
   uint8_t hdr[8] = {0x08, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01};
-  uint16_t cs = ping_icmp_checksum(hdr, sizeof(hdr));
+  uint16_t cs = inet_checksum(hdr, sizeof(hdr));
   // embed and re-check
   uint16_t *cs_field = (uint16_t *)(hdr + 2);
   *cs_field = cs;
-  EXPECT_EQ(ping_icmp_checksum(hdr, sizeof(hdr)), 0);
+  EXPECT_EQ(inet_checksum(hdr, sizeof(hdr)), 0);
 }
 
 TEST(ChecksumTest, CarryFoldedCorrectly) {
   // two 0xffff words -> sum = 0x1fffe -> folded = 0xffff -> ~0xffff = 0
   uint8_t data[4] = {0xff, 0xff, 0xff, 0xff};
-  uint16_t cs = ping_icmp_checksum(data, sizeof(data));
+  uint16_t cs = inet_checksum(data, sizeof(data));
   EXPECT_EQ(cs, 0);
 }
 
@@ -111,7 +112,7 @@ TEST_F(BuildEchoTest, ChecksumVerifies) {
   // save checksum, zero it, recompute
   uint16_t embedded = icmp_->checksum;
   icmp_->checksum = 0;
-  uint16_t recomputed = ping_icmp_checksum(buf_, buf_size_);
+  uint16_t recomputed = inet_checksum(buf_, buf_size_);
   EXPECT_EQ(embedded, recomputed);
 }
 
@@ -168,5 +169,5 @@ TEST_F(BuildEchoTest, MinimalDatlenOneByte) {
   // checksum verifies
   uint16_t cs = h->checksum;
   h->checksum = 0;
-  EXPECT_EQ(cs, ping_icmp_checksum(b, sizeof(b)));
+  EXPECT_EQ(cs, inet_checksum(b, sizeof(b)));
 }

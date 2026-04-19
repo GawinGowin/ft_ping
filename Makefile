@@ -9,7 +9,8 @@ SOURCE += cmd/ft_ping/infra.c
 SOURCE += cmd/ft_ping/usecases.c
 SOURCE += cmd/ft_ping/utils.c
 SOURCE += cmd/ft_ping/icmp.c
-SOURCE += 
+SOURCE += lib/shared/shared_net.c
+SOURCE +=
 
 HEADER =
 HEADER += cmd/ft_ping/ft_ping.h
@@ -18,7 +19,7 @@ TESTS =
 TESTS += $(shell find ./tests -name '*.cpp' -o -name '*.hpp')
 
 CC := cc
-CFLAGS := -Wall -Wextra -Werror -MMD -MP -I$(BASE_PKG_DIR) 
+CFLAGS := -Wall -Wextra -Werror -MMD -MP -I$(BASE_PKG_DIR) -I./lib
 LFALGS := 
 DFLAGS := -fdiagnostics-color=always -g3 -fsanitize=address
 
@@ -69,7 +70,7 @@ fmt:
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake -DCMAKE_VERBOSE_MAKEFILE=ON ..  && make
+	@cd $(BUILD_DIR) && cmake ..  && make
 
 .PHONY: test
 test: build
