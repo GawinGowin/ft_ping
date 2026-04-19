@@ -38,6 +38,8 @@ typedef struct ftping_stats {
   rcvd_table rcvd_tbl;
 } t_ftping_stats;
 
+typedef struct t_ping_session t_ping_session;  /* opaque */
+
 void ftping_init();
 void ftping_run();
 void ftping_get_stats();
