@@ -9,9 +9,9 @@
 
 typedef uint64_t bitmap_t;
 
-struct rcvd_table {
+typedef struct rcvd_table {
   bitmap_t bitmap[MAX_DUP_CHK / (sizeof(bitmap_t) * 8)];
-};
+} rcvd_table;
 
 /* ビット操作マクロ */
 #define BITMAP_WORD(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
