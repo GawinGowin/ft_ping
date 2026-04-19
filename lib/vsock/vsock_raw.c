@@ -1,15 +1,20 @@
 #include "vsock/vsock.h"
 
+#include "ping_icmp.h"
 #include "shared/shared_net.h"
 
 static int set_ip_header(void *packet, const t_ipheader_ctx *ctx);
 
-/* IPヘッダーを書く。ICMPの組み立ては呼び出し元（ping_loop.c）が行う */
+/* IPヘッダーとICMPヘッダーを構築する */
 int build_ipheader_raw(void *packet, const t_ipheader_ctx *ctx) {
   if (packet == NULL || ctx == NULL || ctx->datalen == 0) {
     return -1;
   }
-  return set_ip_header(packet, ctx);
+  set_ip_header(packet, ctx);
+  t_ip_icmp *pkt = (t_ip_icmp *)packet;
+  unsigned char *payload = (unsigned char *)(pkt + 1);
+  ping_icmp_build_echo(&pkt->icmp, payload, ctx->seq, ctx->datalen, &ctx->ts);
+  return 0;
 }
 
 static int set_ip_header(void *packet, const t_ipheader_ctx *ctx) {
