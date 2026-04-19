@@ -19,15 +19,25 @@ struct rcvd_table {
 
 typedef struct ftping_session t_ftping_session; // 前方宣言
 
-typedef struct ftping_config {
+typedef struct ping_config {
+  const char *hostname;
   int datalen;
   int ttl;
   int tos;
-  long npackets;
-  int interval;
-  unsigned int opt_verbose;
-  unsigned int opt_adaptive;
-} t_ftping_config;
+  long count;
+  int interval_ms;
+  int deadline_sec;
+  uint32_t lingertime_us;
+  uint16_t ident;
+  int sndbuf;
+  int preload;
+  unsigned int opt_adaptive : 1;
+  unsigned int opt_flood_poll : 1;
+  unsigned int opt_verbose : 1;
+  unsigned int opt_ptimeofday : 1;
+} t_ping_config;
+
+void error(int status, const char *format, ...);
 
 typedef struct ftping_stats {
   int ntransmitted;
@@ -38,7 +48,7 @@ typedef struct ftping_stats {
   rcvd_table rcvd_tbl;
 } t_ftping_stats;
 
-typedef struct t_ping_session t_ping_session;  /* opaque */
+typedef struct t_ping_session t_ping_session; /* opaque */
 
 void ftping_init();
 void ftping_run();

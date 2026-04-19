@@ -11,4 +11,7 @@ void ping_config_init(t_ping_config *config) {
   config->lingertime_us = 10 * 1000000;
   config->opt_adaptive = 0;
   config->opt_flood_poll = 0;
+  config->ident = 0;
+  config->sndbuf = 0;
+  config->preload = 1;
 }
