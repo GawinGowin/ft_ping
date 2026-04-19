@@ -26,9 +26,9 @@ file(GLOB_RECURSE TEST_SOURCES
 add_executable(ft_ping_test ${TEST_SOURCES})
 
 if(GTest_FOUND)
-  target_link_libraries(ft_ping_test testftping vsock shared ping_stats ping_icmp ping_config ping_loop GTest::GTest GTest::Main)
+  target_link_libraries(ft_ping_test testftping vsock shared ping_stats ping_icmp ping_config ping_loop ping_schedule GTest::GTest GTest::Main)
 else()
-  target_link_libraries(ft_ping_test testftping vsock shared ping_stats ping_icmp ping_config ping_loop gtest gtest_main)
+  target_link_libraries(ft_ping_test testftping vsock shared ping_stats ping_icmp ping_config ping_loop ping_schedule gtest gtest_main)
 endif()
 
 target_include_directories(ft_ping_test PRIVATE
