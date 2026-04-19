@@ -167,6 +167,17 @@ jobs:
           fi
           gh issue comment ${{ matrix.issue.number }} --body "$MSG"
 
+      # ── Step 2.5: ビルド環境セットアップ ────────────────────────────
+      - name: Setup build environment
+        if: steps.setup.outputs.is_blocked != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            lcov \
+            libasan8
+
       # ── Step 3: Claude Code 実行 ──────────────────────────────────
       - name: Execute task with Claude Code
         if: steps.setup.outputs.is_blocked != 'true'
