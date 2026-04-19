@@ -52,4 +52,8 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size);
 int ping_init(t_ping_session *session, char *target);
 int ping_receive_replies(t_ping_session *session, t_ping_receive *received);
 
+#ifdef TESTING
+int should_use_fast_path_test(const t_ping_config *config, int next);
+#endif
+
 #endif /* PING_LOOP_H */
