@@ -16,28 +16,27 @@ TEST(VsockDgramOpsTest, VtablePointersAreSet) {
 TEST(VsockDgramOpsTest, PacketSizeSmallerThanRaw) {
   size_t datalen = 56;
   size_t dgram_size = Ping_socket_dgram_ops.packet_size(datalen);
-  size_t raw_size   = Ping_socket_raw_ops.packet_size(datalen);
+  size_t raw_size = Ping_socket_raw_ops.packet_size(datalen);
   EXPECT_EQ(dgram_size, sizeof(struct icmphdr) + datalen);
   EXPECT_LT(dgram_size, raw_size);
 }
 
-// DGRAM は IP ヘッダーを書かない no-op
-TEST(VsockDgramOpsTest, BuildIpheaderIsNoop) {
+// DGRAM は IP ヘッダーなしで ICMP ヘッダーを直接構築する
+TEST(VsockDgramOpsTest, BuildIpheaderBuildsIcmpHeader) {
   size_t pkt_size = Ping_socket_dgram_ops.packet_size(56);
   void *buf = calloc(1, pkt_size);
   ASSERT_NE(buf, nullptr);
-  memset(buf, 0xAB, pkt_size); // 既知パターンで埋める
 
   t_ipheader_ctx ctx = {};
   ctx.datalen = 56;
+  ctx.seq = 1;
   int ret = Ping_socket_dgram_ops.build_ipheader(buf, &ctx);
   EXPECT_EQ(ret, 0);
 
-  // パケット内容が変更されていないこと（no-op の確認）
-  unsigned char *p = (unsigned char *)buf;
-  for (size_t i = 0; i < pkt_size; i++) {
-    EXPECT_EQ(p[i], 0xAB) << "byte " << i << " was modified";
-  }
+  // ICMP ヘッダーがパケット先頭に構築されること
+  struct icmphdr *icmp = (struct icmphdr *)buf;
+  EXPECT_EQ(icmp->type, (uint8_t)ICMP_ECHO);
+  EXPECT_EQ(icmp->code, 0);
   free(buf);
 }
 
@@ -64,7 +63,7 @@ TEST(VsockDgramOpsTest, ExtraConfigureIsNoop) {
 // RAW と DGRAM で関数ポインタが異なること
 TEST(VsockDgramOpsTest, VtableDiffersFromRaw) {
   EXPECT_NE(Ping_socket_dgram_ops.build_ipheader, Ping_socket_raw_ops.build_ipheader);
-  EXPECT_NE(Ping_socket_dgram_ops.extract_icmp,   Ping_socket_raw_ops.extract_icmp);
-  EXPECT_NE(Ping_socket_dgram_ops.packet_size,    Ping_socket_raw_ops.packet_size);
+  EXPECT_NE(Ping_socket_dgram_ops.extract_icmp, Ping_socket_raw_ops.extract_icmp);
+  EXPECT_NE(Ping_socket_dgram_ops.packet_size, Ping_socket_raw_ops.packet_size);
   EXPECT_NE(Ping_socket_dgram_ops.extra_configure, Ping_socket_raw_ops.extra_configure);
 }
