@@ -107,7 +107,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
     t_ipheader_ctx ctx = {
         .seq = seq,
         .datalen = config->datalen,
-        .ts = &timer->prev_send_time,
+        .ts = timer->prev_send_time,
         .src = net->from.sin_addr,
         .dst = net->whereto.sin_addr,
     };
@@ -129,7 +129,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
   t_ipheader_ctx ctx = {
       .seq = seq,
       .datalen = config->datalen,
-      .ts = &timer->prev_send_time,
+      .ts = timer->prev_send_time,
       .src = net->from.sin_addr,
       .dst = net->whereto.sin_addr,
   };
