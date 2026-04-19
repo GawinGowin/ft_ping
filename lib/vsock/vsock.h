@@ -26,7 +26,7 @@ typedef struct ping_socket_ops t_ping_socket_ops;
 
 typedef struct socket_st {
   int fd;
-  // int socktype;
+  int socktype;
   const t_ping_socket_ops *ops;
 } t_socket_st;
 
