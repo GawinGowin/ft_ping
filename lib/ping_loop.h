@@ -12,6 +12,7 @@
 
 #include "ping_config.h"
 #include "ping_icmp.h"
+#include "ping_schedule.h"
 #include "ping_stats.h"
 #include "shared/shared_error.h"
 #include "shared/shared_net.h"

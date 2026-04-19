@@ -7,4 +7,8 @@ void ping_config_init(t_ping_config *config) {
   config->count = 0; // if 0 => inf
   config->interval_ms = 0;
   config->tos = 0;
+  config->deadline_sec = 0;
+  config->lingertime_us = 10 * 1000000;
+  config->opt_adaptive = 0;
+  config->opt_flood_poll = 0;
 }
