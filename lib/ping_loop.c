@@ -197,7 +197,7 @@ int ping_init(t_ping_session *session, char *target) {
   t_ping_net_state *net = &session->net;
   t_ping_config *config = &session->config;
 
-  net->ident = (uint16_t)(getpid() & 0xFFFF);
+  net->ident = config->ident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
 
   if (ping_socket_select(&net->socket_state) < 0)
     error(1, "Failed to create socket: %s\n", strerror(errno));
