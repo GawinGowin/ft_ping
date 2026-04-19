@@ -70,7 +70,7 @@ fmt:
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake -DCMAKE_VERBOSE_MAKEFILE=ON ..  && make
+	@cd $(BUILD_DIR) && cmake ..  && make
 
 .PHONY: test
 test: build
