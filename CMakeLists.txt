@@ -38,6 +38,9 @@ add_library(ping_loop OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_loop.c)
 target_include_directories(ping_loop PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 target_compile_definitions(ping_loop PUBLIC TESTING=1)
 
+add_library(ping_schedule OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_schedule.c)
+target_include_directories(ping_schedule PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+
 add_executable(ft_ping ${SOURCES})
 
 target_include_directories(
