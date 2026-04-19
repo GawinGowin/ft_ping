@@ -1,0 +1,252 @@
+name: Claude Auto Task Executor
+
+on:
+  schedule:
+    - cron: '0 */5 * * *'  # 5時間おきに実行
+  workflow_dispatch:
+
+jobs:
+  # ── Job 1: 実行する Issue 一覧を取得 ────────────────────────────────
+  get-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - name: List actionable issues
+        id: list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          IN_PROGRESS=$(gh issue list \
+            --label "claude:in-progress" \
+            --json number,title,body --limit 5 2>/dev/null || echo '[]')
+
+          TODO=$(gh issue list \
+            --label "claude:todo" \
+            --json number,title,body --limit 5 2>/dev/null || echo '[]')
+
+          # マージ・重複除去・最大3件
+          COMBINED=$(jq -n \
+            --argjson a "$IN_PROGRESS" \
+            --argjson b "$TODO" \
+            '($a + $b) | unique_by(.number) | .[0:3]')
+
+          if [ "$COMBINED" = "[]" ] || [ -z "$COMBINED" ]; then
+            echo "📭 実行可能なタスクがありません。"
+            COMBINED="[]"
+          else
+            echo "📋 実行タスク: $(echo "$COMBINED" | jq -r '.[].number' | tr '\n' ',')"
+          fi
+
+          echo "matrix=$(echo "$COMBINED" | jq -c '.')" >> $GITHUB_OUTPUT
+
+  # ── Job 2: 各 Issue を並列実行 ──────────────────────────────────────
+  execute:
+    needs: get-issues
+    if: needs.get-issues.outputs.matrix != '[]' && needs.get-issues.outputs.matrix != 'null'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+      id-token: write
+    strategy:
+      matrix:
+        issue: ${{ fromJson(needs.get-issues.outputs.matrix) }}
+      max-parallel: 3
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Step 1: ブランチ作成・PR 作成 ─────────────────────────────
+      - name: Setup branch and PR
+        id: setup
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_BODY: ${{ matrix.issue.body }}
+        run: |
+          ISSUE_NUMBER="${{ matrix.issue.number }}"
+          BRANCH_NAME="claude/issue-${ISSUE_NUMBER}"
+
+          git config user.name "claude[bot]"
+          git config user.email "claude[bot]@users.noreply.github.com"
+
+          # ── 依存チェック: 親Issueのsub-issueが先行未完了ならスキップ ──
+          IS_BLOCKED="false"
+          PARENT_NUM=$(echo "$ISSUE_BODY" | grep -oP '親Issue: #\K[0-9]+' | head -1 || echo "")
+          if [ -n "$PARENT_NUM" ]; then
+            BLOCKERS=$(gh api "repos/${GH_REPO}/issues/${PARENT_NUM}/sub_issues" \
+              --jq "[.[] | select(.number < ${ISSUE_NUMBER} and .state == \"open\")] | length" \
+              2>/dev/null || echo "0")
+            if [ "${BLOCKERS}" -gt 0 ]; then
+              echo "⏸️ Issue #${ISSUE_NUMBER}: 先行するSub-Issue ${BLOCKERS}件が未完了のためスキップ"
+              IS_BLOCKED="true"
+            fi
+          fi
+          echo "is_blocked=$IS_BLOCKED" >> $GITHUB_OUTPUT
+          if [ "$IS_BLOCKED" = "true" ]; then exit 0; fi
+
+          # ラベルを in-progress に更新
+          LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(",")' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q "claude:todo"; then
+            gh issue edit "$ISSUE_NUMBER" \
+              --add-label "claude:in-progress" \
+              --remove-label "claude:todo" || true
+          fi
+
+          # ブランチ: 既存なら checkout、なければ新規作成
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" > /dev/null 2>&1; then
+            git checkout "$BRANCH_NAME"
+            git pull origin "$BRANCH_NAME"
+            IS_RESUME="true"
+            echo "🔄 既存ブランチを使用: $BRANCH_NAME"
+          else
+            git checkout -b "$BRANCH_NAME"
+            git push origin "$BRANCH_NAME"
+            IS_RESUME="false"
+            echo "🌿 新規ブランチ作成: $BRANCH_NAME"
+          fi
+
+          # PR: 既存なら番号取得、なければ新規作成（ドラフト）
+          PR_NUMBER=$(gh pr list --head "$BRANCH_NAME" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          if [ -z "$PR_NUMBER" ]; then
+            PR_URL=$(gh pr create \
+              --title "claude: Issue #${ISSUE_NUMBER} ${{ matrix.issue.title }}" \
+              --body "## 概要
+          Issue #${ISSUE_NUMBER} の自動実行 PR です。
+
+          Closes #${ISSUE_NUMBER}" \
+              --head "$BRANCH_NAME" \
+              --base main \
+              --draft 2>/dev/null) || true
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
+            if [ -n "$PR_NUMBER" ]; then
+              echo "📝 PR #${PR_NUMBER} を作成しました"
+            else
+              echo "⚠️ PR 作成失敗（Settings → Actions → General → 'Allow GitHub Actions to create and approve pull requests' を有効化してください）"
+            fi
+          else
+            echo "📝 既存 PR #${PR_NUMBER} を使用します"
+          fi
+
+          # 前回チェックポイントを取得（Issue コメントから）
+          LAST_CHECKPOINT=$(gh issue view "$ISSUE_NUMBER" --json comments \
+            --jq '[.comments[].body | select(contains("claude-checkpoint"))] | last // ""' \
+            2>/dev/null || echo "")
+
+          echo "branch=$BRANCH_NAME"    >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER"   >> $GITHUB_OUTPUT
+          echo "is_resume=$IS_RESUME"   >> $GITHUB_OUTPUT
+          {
+            echo "last_checkpoint<<CHECKPOINT_EOF"
+            echo "$LAST_CHECKPOINT"
+            echo "CHECKPOINT_EOF"
+          } >> $GITHUB_OUTPUT
+
+      # ── Step 2: 開始コメント ──────────────────────────────────────
+      - name: Post start comment
+        if: steps.setup.outputs.is_blocked != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.setup.outputs.is_resume }}" = "true" ]; then
+            MSG="🔄 Claude Code セッション再開 ($(date -u '+%Y-%m-%d %H:%M UTC'))
+          ブランチ: \`${{ steps.setup.outputs.branch }}\` / PR: #${{ steps.setup.outputs.pr_number }}"
+          else
+            MSG="🚀 Claude Code セッション開始 ($(date -u '+%Y-%m-%d %H:%M UTC'))
+          ブランチ: \`${{ steps.setup.outputs.branch }}\` / PR: #${{ steps.setup.outputs.pr_number }}"
+          fi
+          gh issue comment ${{ matrix.issue.number }} --body "$MSG"
+
+      # ── Step 3: Claude Code 実行 ──────────────────────────────────
+      - name: Execute task with Claude Code
+        if: steps.setup.outputs.is_blocked != 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--allowedTools Bash,Read,Write,Edit,Glob,Grep,MultiEdit"
+          prompt: |
+            # タスク #${{ matrix.issue.number }}: ${{ matrix.issue.title }}
+
+            ## タスク内容
+            ${{ matrix.issue.body }}
+
+            ${{ steps.setup.outputs.is_resume == 'true' && steps.setup.outputs.last_checkpoint != '' && format('## 前回の進捗（ここから継続してください）\n{0}', steps.setup.outputs.last_checkpoint) || '' }}
+
+            ## 作業情報
+            - 作業ブランチ: `${{ steps.setup.outputs.branch }}`
+            - PR 番号: #${{ steps.setup.outputs.pr_number }}
+
+            ## 実行ルール（必ず守ること）
+
+            ### 1. コミット・プッシュ（最重要・情報消失防止）
+            **1ファイル作成・編集するたびに即コミット・プッシュすること**（複数ファイルをまとめてコミット禁止）:
+            ```bash
+            git add <変更した1ファイルのみ>
+            git commit -m "$(cat <<'COMMIT_EOF'
+            step N: 完了した内容の説明（例: add goals/README.md, update _state.json phase to fermenting）
+
+            Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+            COMMIT_EOF
+            )"
+            git push origin ${{ steps.setup.outputs.branch }}
+            ```
+
+            **コミット粒度の原則（厳守）**:
+            - ファイルを1つ書いたら → 即コミット・プッシュ
+            - ファイルを1つ編集したら → 即コミット・プッシュ
+            - 複数ファイルを1コミットにまとめることは禁止
+            - 「あとでまとめてコミット」は禁止
+            - トークン切れでセッションが終了しても、プッシュ済みのコミットは保持される
+
+            ### 2. 進捗コメント（PR にコメント）
+            Issue ではなく **PR #${{ steps.setup.outputs.pr_number }} にコメント**すること:
+            ```bash
+            gh pr comment ${{ steps.setup.outputs.pr_number }} --body $'<!-- claude-checkpoint\n{"step": N, "summary": "完了した内容", "next": "次にやること", "status": "in_progress"}\n-->\n### 進捗報告 (Step N)\n- ✅ 完了: ...\n- ⏳ 次: ...'
+            ```
+            - 大きな処理の前後・各ステップ完了時・少なくとも5〜10分ごとに投稿すること
+
+            ### 3. タスク完了時（必ずこの順番で実行）
+            ```bash
+            # 1. 最後のコミット・プッシュ
+            git add <変更ファイル>
+            git commit -m "完了コミット"
+            git push origin ${{ steps.setup.outputs.branch }}
+
+            # 2. PR を ready に変更
+            gh pr ready ${{ steps.setup.outputs.pr_number }}
+
+            # 3. Issue をクローズ
+            gh issue close ${{ matrix.issue.number }} --comment $'✅ タスク完了\n\nPR: #${{ steps.setup.outputs.pr_number }}\n\n## 成果物\n...'
+            ```
+
+            ### 4. 中断時（トークン不足・セッション切れ）
+            必ず現在の進捗を PR コメントに残してから停止すること（次回実行時に再開できるよう残作業を明記）
+
+      # ── Step 4: 完了ラベル更新 ────────────────────────────────────
+      - name: Update label on completion
+        if: always() && steps.setup.outputs.is_blocked != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATE=$(gh issue view ${{ matrix.issue.number }} \
+            --json state --jq '.state' 2>/dev/null || echo "OPEN")
+          if [ "$STATE" = "CLOSED" ]; then
+            gh issue edit ${{ matrix.issue.number }} \
+              --add-label "claude:done" \
+              --remove-label "claude:in-progress" || true
+            echo "✅ タスク完了。ラベルを claude:done に更新しました。"
+          else
+            echo "⏸️ タスク未完了。次のセッションで継続します。"
+          fi
