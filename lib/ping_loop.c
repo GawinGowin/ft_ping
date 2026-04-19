@@ -193,11 +193,68 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
   return (int)ret;
 }
 
+/**
+ * @brief ソケットの送受信バッファサイズを設定する。
+ * @see https://github.com/GawinGowin/ft_ping/wiki/set_socket_buff
+ *
+ * 1パケットがカーネル内で消費するメモリを粗く見積もり、SO_SNDBUF と SO_RCVBUF を
+ * 適切なサイズに設定する。iputils の sock_setbufs() (ping_common.c:443) に相当し、
+ * ping.c:1034 と同じ計算式を使用する。
+ *
+ * ### バッファサイズの計算式
+ * ```
+ * send = (datalen + 8)                              // ICMPヘッダ(8B) + データ
+ *      + ceil(send / 512) * (IPV4_HEADER_SIZE + 240) // sk_buff オーバーヘッド見積もり
+ * ```
+ * `ceil(send / 512)` はカーネルが sk_buff 単位でメモリを管理するための切り上げ。
+ * `IPV4_HEADER_SIZE + 240 = 260` は iputils の `optlen + 20 + 16 + 64 + 160` と等価
+ * （ft_ping は IP オプション未対応のため optlen=0 として固定）。
+ *
+ * ### SO_SNDBUF
+ * `-S` オプション未指定時は `send`（1パケット分）を設定する。
+ *
+ * ### SO_RCVBUF
+ * `-l preload` 個のパケットを同時に空中に飛ばせるよう `send * preload` を設定する。
+ * カーネルの rmem_max による切り詰めが発生した場合は警告を出す。
+ *
+ * @param fd      設定対象のソケットファイルディスクリプタ
+ * @param config  datalen / sndbuf / preload を参照する設定構造体
+ */
+static void set_socket_buff(int fd, t_ping_config *config) {
+  size_t send = (size_t)(config->datalen + 8);
+  send += ((send + 511) / 512) * (IPV4_HEADER_SIZE + 240);
+  if (send > INT_MAX)
+    error(1, "Buffer size too large: %zu\n", send);
+
+  int sndbuf = config->sndbuf ? config->sndbuf : (int)send;
+  if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0)
+    error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
+
+  int hold;
+  if ((int)send > INT_MAX / config->preload) {
+    error(0, "WARNING: buffer size overflow, reduce packet size or preload\n");
+    hold = INT_MAX;
+  } else {
+    hold = (int)send * config->preload;
+  }
+
+  int rcvbuf = hold;
+  if (hold < 65536)
+    hold = 65536;
+
+  setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &hold, sizeof(hold));
+  socklen_t tmplen = sizeof(hold);
+  if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &hold, &tmplen) == 0) {
+    if (hold < rcvbuf)
+      error(0, "WARNING: probably, rcvbuf is not enough to hold preload\n");
+  }
+}
+
 int ping_init(t_ping_session *session, char *target) {
   t_ping_net_state *net = &session->net;
   t_ping_config *config = &session->config;
 
-  net->ident = (uint16_t)(getpid() & 0xFFFF);
+  net->ident = config->ident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
 
   if (ping_socket_select(&net->socket_state) < 0)
     error(1, "Failed to create socket: %s\n", strerror(errno));
@@ -211,6 +268,8 @@ int ping_init(t_ping_session *session, char *target) {
   int on = 1;
   if (setsockopt(fd, IPPROTO_IP, IP_RECVERR, &on, sizeof(on)) < 0)
     error(1, "setsockopt IP_RECVERR failed: %s\n", strerror(errno));
+
+  set_socket_buff(fd, config);
 
   net->socket_state.ops->extra_configure(fd);
 

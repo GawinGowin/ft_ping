@@ -18,6 +18,8 @@
 #include "shared/shared_net.h"
 #include "vsock/vsock.h"
 
+#define IPV4_HEADER_SIZE 20
+
 typedef struct ping_timer {
   struct timeval prev_send_time;
   unsigned long schedule_waittime;

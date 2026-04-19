@@ -22,24 +22,8 @@ target_include_directories(
 )
 target_compile_definitions(testftping PUBLIC TESTING=1)
 
-add_subdirectory(lib/shared)
-add_subdirectory(lib/vsock)
-
-add_library(ping_stats OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_stats.c)
-target_include_directories(ping_stats PUBLIC ${CMAKE_SOURCE_DIR}/lib)
-
-add_library(ping_icmp OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_icmp.c)
-target_include_directories(ping_icmp PUBLIC ${CMAKE_SOURCE_DIR}/lib)
-
-add_library(ping_config OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_config.c)
-target_include_directories(ping_config PUBLIC ${CMAKE_SOURCE_DIR}/lib)
-
-add_library(ping_loop OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_loop.c)
-target_include_directories(ping_loop PUBLIC ${CMAKE_SOURCE_DIR}/lib)
-target_compile_definitions(ping_loop PUBLIC TESTING=1)
-
-add_library(ping_schedule OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_schedule.c)
-target_include_directories(ping_schedule PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+add_subdirectory(lib)
+add_subdirectory(src)
 
 add_executable(ft_ping ${SOURCES})
 
