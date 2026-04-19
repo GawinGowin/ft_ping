@@ -1,9 +1,14 @@
 #include "vsock/vsock.h"
 
-/* DGRAM は IP ヘッダーを自前で書かない。no-op */
+#include "ping_icmp.h"
+
+/* DGRAM は IP ヘッダー不要。ICMP ヘッダーのみ構築する */
 int build_ipheader_dgram(void *packet, const t_ipheader_ctx *ctx) {
-  (void)packet;
-  (void)ctx;
+  if (packet == NULL || ctx == NULL)
+    return -1;
+  struct icmphdr *icmp_hdr = (struct icmphdr *)packet;
+  unsigned char *payload = (unsigned char *)(icmp_hdr + 1);
+  ping_icmp_build_echo(icmp_hdr, payload, ctx->seq, ctx->datalen, &ctx->ts);
   return 0;
 }
 
