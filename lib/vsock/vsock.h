@@ -10,13 +10,16 @@
 #include <netinet/ip_icmp.h>
 #include <stddef.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 /* IP ヘッダー組み立てコンテキスト */
 typedef struct ipheader_ctx {
+  uint16_t seq;
+  size_t datalen;
+  struct timeval ts;
   struct in_addr src;
   struct in_addr dst;
-  size_t datalen;
 } t_ipheader_ctx;
 
 typedef struct ping_socket_ops t_ping_socket_ops;

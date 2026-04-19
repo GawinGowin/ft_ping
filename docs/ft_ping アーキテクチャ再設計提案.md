@@ -429,8 +429,8 @@ curlの `include/curl/curl.h` に倣い、ライブラリとしての公開API�
 
 ```c
 /* include/ft_ping/ft_ping.h */
-#ifndef FTPING_H
-#define FTPING_H
+#ifndef FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
+#define FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
 
 #include <netinet/in.h>
 #include <stdint.h>
@@ -464,13 +464,13 @@ typedef struct ftping_session ftping_session_t;  /* opaque */
 /* ── 公開API ── */
 
 ftping_session_t *ftping_init(const ftping_config_t *config);
-int               ftping_run(ftping_session_t *session);
+int               ping_run(ftping_session_t *session);
 ftping_stats_t    ftping_get_stats(const ftping_session_t *session);
 void              ftping_stop(ftping_session_t *session);
 void              ftping_cleanup(ftping_session_t *session);
 const char       *ftping_strerror(int errcode);
 
-#endif /* FTPING_H */
+#endif /* FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD */
 ```
 
 **CLIツール（`src/`）からの使用例：**
@@ -482,7 +482,7 @@ const char       *ftping_strerror(int errcode);
 int main(int argc, char **argv) {
     ftping_config_t config = parse_args(argc, argv);
     ftping_session_t *session = ftping_init(&config);
-    ftping_run(session);
+    ping_run(session);
     ftping_stats_t stats = ftping_get_stats(session);
     print_statistics(&stats);
     ftping_cleanup(session);
@@ -602,7 +602,7 @@ sequenceDiagram
     Lib-->>CLI: session（ops* を内部で保持）
 
     note over CLI,Stats: ③ lib/ は ops* 経由で動く。実装型を知らない
-    CLI->>Lib: ftping_run(session)
+    CLI->>Lib: ping_run(session)
     loop ping loop
         Lib->>Raw: ops->build_packet()（vtable経由）
         Lib->>Raw: sendto()
@@ -626,15 +626,15 @@ sequenceDiagram
 | 現在のファイル | 移行先 | 備考 |
 |-------------|--------|------|
 | `cmd/ft_ping/ft_ping.c` (main) | `src/tool_main.c` | CLIエントリーポイント |
-| `cmd/ft_ping/ft_ping.c` (main_loop) | `lib/ping_loop.c` | ライブラリ側に移動 |
-| `cmd/ft_ping/ft_ping.c` (pinger) | `lib/ping_loop.c` | static変数を構造体メンバに |
+| `cmd/ft_ping/ft_ping.c` (main_loop) | `lib/ping_loop.c` → `ping_run()` | ライブラリ側に移動 |
+| `cmd/ft_ping/ft_ping.c` (pinger) | `lib/ping_loop.c` → `ping_send_one()` | static変数を構造体メンバに |
 | `cmd/ft_ping/usecases.c` (configure_state) | `lib/ping_config.c` | |
 | `cmd/ft_ping/usecases.c` (parse_arg) | `src/tool_getparam.c` | CLI側の責任 |
 | `cmd/ft_ping/usecases.c` (signal_handler) | `src/tool_signal.c` | CLI側の責任 |
-| `cmd/ft_ping/usecases.c` (initialize) | `lib/ping_loop.c` | ソケット初期化 |
+| `cmd/ft_ping/usecases.c` (initialize) | `lib/ping_loop.c` → `ftping_init()` | ソケット初期化 |
 | `cmd/ft_ping/usecases.c` (gather_statistics) | `lib/ping_stats.c` | |
 | `cmd/ft_ping/usecases.c` (finish_statistics) | `lib/ping_stats.c` | |
-| `cmd/ft_ping/usecases.c` (receive_replies) | `lib/ping_loop.c` | |
+| `cmd/ft_ping/usecases.c` (receive_replies) | `lib/ping_loop.c` → `ping_receive_replies()` | |
 | `cmd/ft_ping/usecases.c` (parse_reply) | `lib/ping_icmp.c` | |
 | `cmd/ft_ping/usecases.c` (schedule_exit) | `lib/ping_schedule.c` | |
 | `cmd/ft_ping/usecases.c` (show_usage) | `src/tool_getparam.c` | |
