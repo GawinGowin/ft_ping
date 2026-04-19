@@ -60,7 +60,7 @@ void ping_run(t_ping_session *session) {
 
     do {
       next = ping_send_one(session, send_packet, packet_size);
-      next = schedule_exit(config, &(session->stats), next);
+      next = ping_schedule_exit(config, &(session->stats), &(session->timer), next);
     } while (next <= 0);
 
     polling = 0;
