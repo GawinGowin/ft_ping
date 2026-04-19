@@ -1,6 +1,7 @@
 #ifndef PING_CONFIG_H
 #define PING_CONFIG_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
 typedef struct ping_config {
@@ -10,6 +11,8 @@ typedef struct ping_config {
   int tos;
   long count;
   int interval_ms;
+  int deadline_sec;
+  uint32_t lingertime_us;
   unsigned int opt_adaptive : 1;
   int opt_flood_poll;
 } t_ping_config;
