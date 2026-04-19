@@ -167,8 +167,10 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
 
     ret = recvmsg(*received->socket_fd, msg, *received->polling);
     if (ret < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        ret = 0;
         break;
+      }
       return (int)ret;
     }
 
