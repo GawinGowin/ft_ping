@@ -92,6 +92,12 @@ void ping_run(t_ping_session *session) {
   free(recv_buf);
 }
 
+#ifdef TESTING
+int should_use_fast_path_test(const t_ping_config *config, int next) {
+  return should_use_fast_path(config, next);
+}
+#endif
+
 int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
   t_ping_config *config = &session->config;
   t_ping_net_state *net = &session->net;
