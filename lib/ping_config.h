@@ -10,8 +10,8 @@ typedef struct ping_config {
   int tos;
   long count;
   int interval_ms;
-} ping_config_t;
+} t_ping_config;
 
-void ping_config_init(ping_config_t *config);
+void ping_config_init(t_ping_config *config);
 
 #endif /* PING_CONFIG_H */
