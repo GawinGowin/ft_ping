@@ -23,5 +23,6 @@ int send_packet(void *packet, size_t packet_size, int sockfd, struct sockaddr_in
 void get_source_address(struct sockaddr_in *src, struct sockaddr_in *dest, const char *device);
 void configure_socket_timeouts(int sockfd, int interval, int *opt_flood_poll);
 int is_ipv6_address(const char *addr);
+uint16_t inet_checksum(void *data, size_t len);
 
 #endif /* SHARED_NET_H */

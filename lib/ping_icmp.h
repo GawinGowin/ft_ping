@@ -1,12 +1,14 @@
 #ifndef PING_ICMP_H
 #define PING_ICMP_H
 
+#include <limits.h>
 #include <netinet/ip_icmp.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
-uint16_t ping_icmp_checksum(void *data, size_t len);
 void ping_icmp_build_echo(
     struct icmphdr *icmp_hdr,
     unsigned char *payload,
