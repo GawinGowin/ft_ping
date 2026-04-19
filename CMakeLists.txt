@@ -34,6 +34,10 @@ target_include_directories(ping_icmp PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 add_library(ping_config OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_config.c)
 target_include_directories(ping_config PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 
+add_library(ping_loop OBJECT ${CMAKE_SOURCE_DIR}/lib/ping_loop.c)
+target_include_directories(ping_loop PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+target_compile_definitions(ping_loop PUBLIC TESTING=1)
+
 add_executable(ft_ping ${SOURCES})
 
 target_include_directories(
