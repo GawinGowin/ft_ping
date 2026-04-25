@@ -173,6 +173,48 @@ graph LR
 
 ---
 
+## 3.5 現在の実装状態（2026-04時点）
+
+### 実装済み
+
+| ファイル | 役割 |
+|---|---|
+| `include/ft_ping/ft_ping.h` | 公開API・型定義（関数シグネチャは §7 を参照） |
+| `lib/ping_config.c/h` | 設定初期化・デフォルト値 |
+| `lib/ping_stats.c/h` | 統計蓄積・重複検出 |
+| `lib/ping_icmp.c/h` | ICMPパケット構築・応答解析 |
+| `lib/ping_loop.c/h` | メインpingループ（`t_ping_session` 定義） |
+| `lib/ping_schedule.c/h` | 終了スケジューリング |
+| `lib/vsock/vsock.h/c` | バックエンド選択ロジック |
+| `lib/vsock/vsock_raw.c` | SOCK_RAW アダプター |
+| `lib/vsock/vsock_dgram.c` | SOCK_DGRAM アダプター |
+| `lib/shared/shared_error.c/h` | `error()` 関数 |
+| `lib/shared/shared_net.c/h` | DNS解決・送信元アドレス・送信 |
+| `lib/shared/shared_parse.c/h` | `parse_long()` |
+| `src/tool_getparam.c/h` | 引数パース（`-c`, `-s`, `-t` 等） |
+
+### 未実装（オープンタスク）
+
+| ファイル | 対応 Issue |
+|---|---|
+| `src/tool_main.c` | #47 |
+| `lib/ftping.c`（公開APIラッパー） | #47 に付随 |
+| `src/tool_signal.c/h` | 未着手 |
+| `src/tool_output.c/h` | 未着手 |
+| `src/tool_cleanup.c/h` | 未着手 |
+
+### cmd/（レガシー・編集禁止）
+
+`cmd/ft_ping/` は旧構造のまま `testftping` ライブラリとして `CMakeLists.txt` に残存している。
+**全タスク完了後に削除予定**。現在のビルドシステムはまだ `cmd/` のコードに依存している。
+
+**Claudeへの禁止事項：**
+- `cmd/` 以下のファイルを編集してはならない
+- `cmd/` のコードは動作確認・参照目的での読み取りのみ許可
+- 新機能の実装は必ず `lib/` または `src/` に対して行う
+
+---
+
 ## 4. 依存関係の方向
 
 curlと同じ**一方向依存**を徹底する。curlでは `lib/multi.c` や `lib/easy.c` が `vtls/vtls.h` を直接インクルードしているように、ft_pingでも `lib/ping_loop.c` は `vsock/vsock.h` を直接インクルードしてよい。
@@ -425,67 +467,96 @@ ops->extract_icmp(recv_buf, recv_len, &icmp, &icmp_len);
 
 ## 7. 公開API設計
 
-curlの `include/curl/curl.h` に倣い、ライブラリとしての公開APIを定義する：
+`src/` は `include/ft_ping/ft_ping.h` の公開APIのみを使う。内部ヘッダー（`lib/*.h`, `lib/vsock/*.h`）を直接インクルードしてはならない。
+
+### 公開ヘッダー（`include/ft_ping/ft_ping.h`）の正しいシグネチャ
+
+実装済みの内部API（`lib/ping_loop.h` の `ping_init` / `ping_run` 等）に合わせた正しいシグネチャ：
 
 ```c
 /* include/ft_ping/ft_ping.h */
-#ifndef FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
-#define FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD
 
-#include <netinet/in.h>
-#include <stdint.h>
+/* ── 型名規則：t_ プレフィックス ── */
 
-/* ── 公開型定義 ── */
+typedef struct ping_session t_ping_session;  /* opaque（実体は lib/ping_loop.h） */
 
-typedef struct ftping_config {
-    const char *hostname;
-    int   datalen;
-    int   ttl;
-    int   tos;
-    long  count;        /* 0 = 無限 */
-    int   interval_ms;
-    int   deadline_sec;
-    int   verbose;
-    int   adaptive;
-} ftping_config_t;
-
-typedef struct ftping_stats {
-    int    transmitted;
-    int    received;
-    long   repeats;
-    double rtt_min_ms;
-    double rtt_avg_ms;
-    double rtt_max_ms;
-    double rtt_mdev_ms;
-} ftping_stats_t;
-
-typedef struct ftping_session ftping_session_t;  /* opaque */
+/* t_ping_config, t_ftping_stats は公開ヘッダーで完全定義する */
 
 /* ── 公開API ── */
 
-ftping_session_t *ftping_init(const ftping_config_t *config);
-int               ping_run(ftping_session_t *session);
-ftping_stats_t    ftping_get_stats(const ftping_session_t *session);
-void              ftping_stop(ftping_session_t *session);
-void              ftping_cleanup(ftping_session_t *session);
-const char       *ftping_strerror(int errcode);
-
-#endif /* FT_PING_20_E3_82_A2_E3_83_BC_E3_82_AD_E3_83_86_E3_82_AF_E3_83_81_E3_83_A3_E5_86_8D_E8_A8_AD_E8_A8_88_E6_8F_90_E6_A1_88_MD */
+t_ping_session  *ftping_init(const t_ping_config *config, const char *target);
+void             ftping_run(t_ping_session *session);
+t_ftping_stats   ftping_get_stats(const t_ping_session *session);
+void             ftping_stop(t_ping_session *session);
+void             ftping_cleanup(t_ping_session *session);
 ```
 
-**CLIツール（`src/`）からの使用例：**
+> **注意：** 現在の `include/ft_ping/ft_ping.h` の関数宣言は全て引数なしの `void` スタブで、上記と一致しない。issue #47 での修正が必要。
+
+### ラッパー実装（`lib/ftping.c`）
+
+公開APIは `lib/ftping.c` に薄いラッパーとして実装する。このファイルは `lib/ping_loop.h` 等の内部ヘッダーを直接インクルードしてよい（`lib/` 内部だから）。
+
+```c
+/* lib/ftping.c */
+#include "ping_loop.h"
+#include "ping_stats.h"
+
+t_ping_session *ftping_init(const t_ping_config *config, const char *target) {
+    t_ping_session *session = malloc(sizeof(t_ping_session));
+    if (!session) return NULL;
+    memset(session, 0, sizeof(*session));
+    session->config = *config;
+    if (ping_init(session, (char *)target) < 0) {
+        free(session);
+        return NULL;
+    }
+    return session;
+}
+
+void ftping_run(t_ping_session *session) {
+    ping_run(session);
+}
+
+t_ftping_stats ftping_get_stats(const t_ping_session *session) {
+    t_ftping_stats out;
+    out.ntransmitted = session->stats.ntransmitted;
+    out.nreceived    = session->stats.nreceived;
+    out.tmin         = session->stats.tmin;
+    out.tmax         = session->stats.tmax;
+    out.tsum         = session->stats.tsum;
+    return out;
+}
+
+void ftping_stop(t_ping_session *session) {
+    session->is_exiting = 1;
+}
+
+void ftping_cleanup(t_ping_session *session) {
+    if (session && session->net.socket_state.fd >= 0)
+        close(session->net.socket_state.fd);
+    free(session);
+}
+```
+
+### `src/tool_main.c` からの使用例
 
 ```c
 /* src/tool_main.c */
-#include <ft_ping/ft_ping.h>
+#include "ft_ping.h"            /* include/ft_ping/ft_ping.h */
+#include "tool_getparam.h"
 
 int main(int argc, char **argv) {
-    ftping_config_t config = parse_args(argc, argv);
-    ftping_session_t *session = ftping_init(&config);
-    ping_run(session);
-    ftping_stats_t stats = ftping_get_stats(session);
-    print_statistics(&stats);
+    t_ping_config config;
+    tool_parse_args(&argc, &argv, &config);
+
+    t_ping_session *session = ftping_init(&config, config.hostname);
+    ftping_run(session);
+
+    t_ftping_stats stats = ftping_get_stats(session);
+    /* 統計表示 */
     ftping_cleanup(session);
+    return 0;
 }
 ```
 
