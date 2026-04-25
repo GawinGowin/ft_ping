@@ -1,3 +1,4 @@
+
 .vscode/settings.json
 .vscode/launch.json
 *.pdf
@@ -226,3 +227,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .claude.local.json
+CLAUDE.local.md
+
+mise.*.toml
