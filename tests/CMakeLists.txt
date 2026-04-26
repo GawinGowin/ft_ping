@@ -25,7 +25,7 @@ file(GLOB_RECURSE TEST_SOURCES
 set(FTPING_LIBS
   testftping vsock shared
   ping_stats ping_icmp ping_config ping_loop ping_schedule
-  tool_getparam
+  tool_getparam tool_output
 )
 
 #..:: ft_ping_test ::..
@@ -41,6 +41,7 @@ target_include_directories(ft_ping_test PRIVATE
   ${CMAKE_SOURCE_DIR}/cmd/ft_ping
   ${CMAKE_SOURCE_DIR}/lib
   ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/include/ft_ping
   ${gtest_SOURCE_DIR}
 )

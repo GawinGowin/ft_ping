@@ -1,7 +1,7 @@
 #include "ft_ping.h"
 #include "tool_getparam.h"
+#include "tool_output.h"
 #include "tool_signal.h"
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -30,25 +30,14 @@ int main(int argc, char **argv) {
   }
   tool_setup_signals(session);
 
+  ftping_set_reply_handler(session, tool_output_reply, &config);
+
+  tool_output_header(&config, ftping_get_target_addr(session), ftping_get_packet_size(session));
+
   ftping_run(session);
 
-  t_ftping_stats stats = ftping_get_stats(session);
-
-  // 統計情報の表示
-  printf("\n--- %s ping statistics ---\n", config.hostname);
-  printf("%d packets transmitted, %d received, ", stats.ntransmitted, stats.nreceived);
-  if (stats.ntransmitted > 0) {
-    int loss = ((stats.ntransmitted - stats.nreceived) * 100) / stats.ntransmitted;
-    printf("%d%% packet loss, time %.0fms\n", loss, stats.tsum);
-  } else {
-    printf("\n");
-  }
-
-  if (stats.nreceived > 0) {
-    printf(
-        "rtt min/avg/max = %.3f/%.3f/%.3f ms\n", (double)stats.tmin / 1000.0,
-        (stats.tsum / stats.nreceived) / 1000.0, (double)stats.tmax / 1000.0);
-  }
+  t_ftping_summary summary = ftping_get_summary(session);
+  tool_output_finish(&summary);
 
   ftping_cleanup(session);
   return 0;
