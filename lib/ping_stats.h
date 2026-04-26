@@ -2,20 +2,7 @@
 #define PING_STATS_H
 
 #include <stdint.h>
-
-/* 重複検出システム */
-#define MAX_DUP_CHK 0x10000
-#define BITMAP_SHIFT 6
-
-typedef uint64_t bitmap_t;
-
-struct rcvd_table {
-  bitmap_t bitmap[MAX_DUP_CHK / (sizeof(bitmap_t) * 8)];
-};
-
-/* ビット操作マクロ */
-#define BITMAP_WORD(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
-#define BITMAP_MASK(bit) (((bitmap_t)1) << ((bit) & ((1 << BITMAP_SHIFT) - 1)))
+#include "ft_ping/ft_ping.h"
 
 typedef struct ping_stats_internal {
   int ntransmitted;

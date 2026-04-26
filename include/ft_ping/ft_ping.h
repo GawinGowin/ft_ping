@@ -17,8 +17,6 @@ typedef struct rcvd_table {
 #define BITMAP_WORD(tbl, bit) ((tbl)->bitmap[(bit) >> BITMAP_SHIFT])
 #define BITMAP_MASK(bit) (((bitmap_t)1) << ((bit) & ((1 << BITMAP_SHIFT) - 1)))
 
-typedef struct ftping_session t_ftping_session; // 前方宣言
-
 typedef struct ping_config {
   const char *hostname;
   int datalen;
@@ -48,13 +46,14 @@ typedef struct ftping_stats {
   rcvd_table rcvd_tbl;
 } t_ftping_stats;
 
-typedef struct t_ping_session t_ping_session; /* opaque */
+typedef struct ping_session t_ping_session; /* opaque */
 
-void ftping_init();
-void ftping_run();
-void ftping_get_stats();
-void ftping_stop();
-void ftping_cleanup();
-void ftping_strerror();
+/* ── 公開API ── */
+void ftping_config_init(t_ping_config *config);
+t_ping_session *ftping_init(const t_ping_config *config, const char *target);
+void ftping_run(t_ping_session *session);
+t_ftping_stats ftping_get_stats(const t_ping_session *session);
+void ftping_stop(t_ping_session *session);
+void ftping_cleanup(t_ping_session *session);
 
 #endif /* FT_PING_H */
