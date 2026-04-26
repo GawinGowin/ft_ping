@@ -1,7 +1,10 @@
 #ifndef FT_PING_H
 #define FT_PING_H
 
+#include <netinet/in.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <sys/time.h>
 
 /* 重複検出システム */
 #define MAX_DUP_CHK 0x10000 // 65536個のシーケンス番号を追跡
@@ -37,22 +40,44 @@ typedef struct ping_config {
 
 void error(int status, const char *format, ...);
 
-typedef struct ftping_stats {
+/* 1パケット応答イベント。lib/ → tool_output コールバックの引数。 */
+typedef struct ftping_reply {
+  int bytes;                /* ICMP ヘッダー＋データ部のサイズ */
+  struct in_addr from_addr; /* 送信元 IP */
+  uint16_t seq;             /* 受信した ICMP シーケンス（ホスト順） */
+  long triptime_us;         /* RTT [μs]、未測定なら -1 */
+  int is_duplicate;         /* 重複なら 1 */
+  struct timeval recv_time; /* gettimeofday(recv 時)。-D 用 */
+} t_ftping_reply;
+
+/* 最終統計用の DTO。tool_output_finish が消費する。 */
+typedef struct ftping_summary {
+  const char *hostname;
+  int interval_ms;
   int ntransmitted;
   int nreceived;
-  long tmin;
-  long tmax;
-  double tsum;
-  rcvd_table rcvd_tbl;
-} t_ftping_stats;
+  long nrepeats;
+  long nchecksum;
+  long nerrors;
+  long tmin;    /* μs */
+  long tmax;    /* μs */
+  double tsum;  /* μs */
+  double tsum2; /* μs² */
+  int timing;   /* RTT 計測有効なら 1 */
+} t_ftping_summary;
+
+typedef void (*t_ftping_reply_cb)(const t_ftping_reply *reply, void *ctx);
 
 typedef struct ping_session t_ping_session; /* opaque */
 
 /* ── 公開API ── */
 void ftping_config_init(t_ping_config *config);
 t_ping_session *ftping_init(const t_ping_config *config, const char *target);
+void ftping_set_reply_handler(t_ping_session *session, t_ftping_reply_cb cb, void *ctx);
 void ftping_run(t_ping_session *session);
-t_ftping_stats ftping_get_stats(const t_ping_session *session);
+t_ftping_summary ftping_get_summary(const t_ping_session *session);
+size_t ftping_get_packet_size(const t_ping_session *session);
+struct in_addr ftping_get_target_addr(const t_ping_session *session);
 void ftping_stop(t_ping_session *session);
 void ftping_cleanup(t_ping_session *session);
 

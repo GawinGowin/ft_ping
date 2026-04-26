@@ -1,5 +1,6 @@
 #include "ping_loop.h"
 
+#include <limits.h>
 #include <linux/errqueue.h>
 
 #define MIN_INTERVAL_MS 10
@@ -244,12 +245,39 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
     int is_ours = session->net.socket_state.socktype == SOCK_DGRAM ||
                   ntohs(icmp ? icmp->un.echo.id : 0) == session->net.ident;
 
-    if (icmp && is_ours)
-      ping_stats_gather(
-          &session->stats, icmp->un.echo.sequence,
-          /* triptime */ 0, 0);
+    if (icmp && is_ours && icmp->type == ICMP_ECHOREPLY) {
+      uint16_t seq = ntohs(icmp->un.echo.sequence);
 
-    (void)from;
+      int is_duplicate = ping_stats_rcvd_test(&session->stats, seq) ? 1 : 0;
+      if (!is_duplicate)
+        ping_stats_rcvd_set(&session->stats, seq);
+
+      /* RTT の計算: payload 先頭に埋め込まれた送信時刻を使う。
+       * ping_icmp_build_echo() が memcpy(payload, ts, sizeof(ts)) で書き込んでいる。 */
+      long triptime = -1;
+      const size_t ts_off = sizeof(struct icmphdr);
+      if (session->stats.timing && (size_t)icmp_len >= ts_off + sizeof(struct timeval)) {
+        struct timeval send_time;
+        memcpy(&send_time, (char *)icmp + ts_off, sizeof(send_time));
+        triptime = (recv_time.tv_sec - send_time.tv_sec) * 1000000L +
+                   (recv_time.tv_usec - send_time.tv_usec);
+      }
+
+      ping_stats_gather(&session->stats, seq, triptime, is_duplicate);
+
+      if (session->reply_cb) {
+        t_ftping_reply ev = {
+            .bytes = icmp_len,
+            .from_addr = from ? from->sin_addr : (struct in_addr){0},
+            .seq = seq,
+            .triptime_us = triptime,
+            .is_duplicate = is_duplicate,
+            .recv_time = recv_time,
+        };
+        session->reply_cb(&ev, session->reply_ctx);
+      }
+    }
+
     /* 2回目以降は non-blocking で連続吸い出し。
      * カーネルの受信キューに溜まっている応答を 1 ループで全て処理することで
      * in_flight を解消し、次の pinger 呼び出しを正しいタイミングに保つ。 */
@@ -323,6 +351,11 @@ static void set_socket_buff(int fd, t_ping_config *config) {
 int ping_init(t_ping_session *session, char *target) {
   t_ping_net_state *net = &session->net;
   t_ping_config *config = &session->config;
+
+  /* RTT 計測の有効化: 送信パケットにタイムスタンプを埋め込めるサイズなら timing=1。
+   * tmin は LONG_MAX 初期化（最初の RTT が必ず採択される）。 */
+  session->stats.tmin = LONG_MAX;
+  session->stats.timing = ((size_t)config->datalen >= sizeof(struct timeval)) ? 1 : 0;
 
   net->ident = config->ident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
 

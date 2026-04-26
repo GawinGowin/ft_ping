@@ -188,131 +188,71 @@ TEST_F(GatherTest, PipesizeDoesNotDecrease) {
   EXPECT_EQ(stats.pipesize, 4);
 }
 
-/* ─── ping_stats_finish ─────────────────────────────────── */
+/* ─── ping_stats_compute_summary ────────────────────────── */
 
-class FinishTest : public ::testing::Test {
+class ComputeSummaryTest : public ::testing::Test {
 protected:
   t_ping_stats_internal stats = {};
 
-  std::string capture_finish(int interval_ms = 1000) {
-    testing::internal::CaptureStdout();
-    ping_stats_finish(&stats, "example.com", interval_ms);
-    return testing::internal::GetCapturedStdout();
+  t_ftping_summary compute(int interval_ms = 1000) {
+    t_ftping_summary out{};
+    ping_stats_compute_summary(&stats, "example.com", interval_ms, &out);
+    return out;
   }
 };
 
-TEST_F(FinishTest, HeaderContainsHostname) {
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("example.com ping statistics"), std::string::npos);
+TEST_F(ComputeSummaryTest, HostnameAndIntervalCopied) {
+  auto s = compute(/*interval_ms=*/250);
+  EXPECT_STREQ(s.hostname, "example.com");
+  EXPECT_EQ(s.interval_ms, 250);
 }
 
-TEST_F(FinishTest, ZeroPackets) {
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("0 packets transmitted, 0 received"), std::string::npos);
+TEST_F(ComputeSummaryTest, ZeroPackets) {
+  auto s = compute();
+  EXPECT_EQ(s.ntransmitted, 0);
+  EXPECT_EQ(s.nreceived, 0);
 }
 
-TEST_F(FinishTest, PacketCountsAppear) {
+TEST_F(ComputeSummaryTest, PacketCountsCopied) {
   stats.ntransmitted = 5;
   stats.nreceived = 4;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("5 packets transmitted, 4 received"), std::string::npos);
+  auto s = compute();
+  EXPECT_EQ(s.ntransmitted, 5);
+  EXPECT_EQ(s.nreceived, 4);
 }
 
-TEST_F(FinishTest, ZeroPercentLoss) {
-  stats.ntransmitted = 4;
-  stats.nreceived = 4;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("0.0% packet loss"), std::string::npos);
-}
-
-TEST_F(FinishTest, HundredPercentLoss) {
-  stats.ntransmitted = 4;
-  stats.nreceived = 0;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("100.0% packet loss"), std::string::npos);
-}
-
-TEST_F(FinishTest, FiftyPercentLoss) {
-  stats.ntransmitted = 4;
-  stats.nreceived = 2;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("50.0% packet loss"), std::string::npos);
-}
-
-TEST_F(FinishTest, DuplicatesAppear) {
-  stats.ntransmitted = 3;
-  stats.nreceived = 3;
+TEST_F(ComputeSummaryTest, RepeatChecksumErrorsCopied) {
   stats.nrepeats = 2;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("+2 duplicates"), std::string::npos);
+  stats.nchecksum = 3;
+  stats.nerrors = 4;
+  auto s = compute();
+  EXPECT_EQ(s.nrepeats, 2);
+  EXPECT_EQ(s.nchecksum, 3);
+  EXPECT_EQ(s.nerrors, 4);
 }
 
-TEST_F(FinishTest, NoDuplicatesLineWhenZero) {
-  stats.ntransmitted = 1;
-  stats.nreceived = 1;
-  std::string out = capture_finish();
-  EXPECT_EQ(out.find("duplicates"), std::string::npos);
-}
-
-TEST_F(FinishTest, CorruptedAppears) {
-  stats.ntransmitted = 3;
-  stats.nreceived = 2;
-  stats.nchecksum = 1;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("+1 corrupted"), std::string::npos);
-}
-
-TEST_F(FinishTest, ErrorsAppear) {
-  stats.ntransmitted = 3;
-  stats.nreceived = 2;
-  stats.nerrors = 1;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("+1 errors"), std::string::npos);
-}
-
-TEST_F(FinishTest, TimeLineUsesIntervalMs) {
-  stats.ntransmitted = 3;
-  std::string out = capture_finish(/*interval_ms=*/200);
-  EXPECT_NE(out.find("time 600ms"), std::string::npos);
-}
-
-TEST_F(FinishTest, RttLineAppearsWhenReceivedAndTiming) {
-  stats.ntransmitted = 1;
-  stats.nreceived = 1;
-  stats.timing = 1;
+TEST_F(ComputeSummaryTest, RttFieldsCopied) {
   stats.tmin = 10000;
-  stats.tmax = 10000;
-  stats.tsum = 10000;
-  stats.tsum2 = 10000.0 * 10000.0;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("rtt min/avg/max/mdev"), std::string::npos);
-}
-
-TEST_F(FinishTest, RttLineAbsentWhenTimingOff) {
-  stats.ntransmitted = 1;
-  stats.nreceived = 1;
-  stats.timing = 0;
-  std::string out = capture_finish();
-  EXPECT_EQ(out.find("rtt"), std::string::npos);
-}
-
-TEST_F(FinishTest, RttLineAbsentWhenNoReceived) {
-  stats.ntransmitted = 3;
-  stats.nreceived = 0;
+  stats.tmax = 50000;
+  stats.tsum = 30000;
+  stats.tsum2 = 30000.0 * 30000.0;
   stats.timing = 1;
-  std::string out = capture_finish();
-  EXPECT_EQ(out.find("rtt"), std::string::npos);
+  auto s = compute();
+  EXPECT_EQ(s.tmin, 10000);
+  EXPECT_EQ(s.tmax, 50000);
+  EXPECT_DOUBLE_EQ(s.tsum, 30000.0);
+  EXPECT_DOUBLE_EQ(s.tsum2, 30000.0 * 30000.0);
+  EXPECT_EQ(s.timing, 1);
 }
 
-TEST_F(FinishTest, RttValuesCorrect) {
-  /* 1回だけ受信、RTT=10ms(=10000us) → min=avg=max=10.000, mdev=0.000 */
-  stats.ntransmitted = 1;
-  stats.nreceived = 1;
-  stats.timing = 1;
-  stats.tmin = 10000;
-  stats.tmax = 10000;
-  stats.tsum = 10000;
-  stats.tsum2 = 10000.0 * 10000.0;
-  std::string out = capture_finish();
-  EXPECT_NE(out.find("10.000/10.000/10.000/0.000 ms"), std::string::npos);
+TEST_F(ComputeSummaryTest, NullStatsZeroesOut) {
+  t_ftping_summary s{};
+  s.ntransmitted = 99;
+  ping_stats_compute_summary(nullptr, "example.com", 1000, &s);
+  EXPECT_EQ(s.ntransmitted, 0);
+}
+
+TEST_F(ComputeSummaryTest, NullOutputDoesNotCrash) {
+  ping_stats_compute_summary(&stats, "example.com", 1000, nullptr);
+  SUCCEED();
 }

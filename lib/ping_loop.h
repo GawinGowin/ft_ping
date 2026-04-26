@@ -38,6 +38,8 @@ typedef struct ping_session {
   t_ping_timer timer;
   t_ping_net_state net;
   volatile int is_exiting; /* ping_stop() がセット */
+  t_ftping_reply_cb reply_cb;
+  void *reply_ctx;
 } t_ping_session;
 
 typedef struct ping_receive {
