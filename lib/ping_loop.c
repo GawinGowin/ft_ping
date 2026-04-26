@@ -104,7 +104,9 @@ void ping_run(t_ping_session *session) {
       next = ping_schedule_exit(config, &(session->stats), &(session->timer), next);
       if (session->is_exiting)
         break;
-    } while (next == 0);
+      /* next <= 0 で再送試行: iputils main_loop と同じ条件。
+       * next == -1 (送信失敗) と next == 0 を区別せず、即時に再試行する。 */
+    } while (next <= 0);
 
     if (session->is_exiting)
       break;
@@ -180,7 +182,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
     };
     net->socket_state.ops->build_ipheader(packet, &ctx);
     if (send_packet(packet, packet_size, net->socket_state.fd, &net->whereto) < 0)
-      return -1;
+      return SCHINT(config->interval_ms);
     session->stats.ntransmitted++;
     return config->interval_ms;
   }
