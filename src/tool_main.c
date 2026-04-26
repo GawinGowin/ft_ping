@@ -1,28 +1,9 @@
 #include "ft_ping.h"
 #include "tool_getparam.h"
+#include "tool_signal.h"
 #include <math.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-static t_ping_session *g_session = NULL;
-
-static void handle_sigint(int sig) {
-  (void)sig;
-  if (g_session) {
-    ftping_stop(g_session);
-  }
-  // 2回目以降のSIGINTで強制終了できるようにデフォルトに戻す
-  signal(SIGINT, SIG_DFL);
-}
-
-static void handle_sigalrm(int sig) {
-  (void)sig;
-  if (g_session) {
-    ftping_stop(g_session);
-  }
-}
 
 int main(int argc, char **argv) {
   t_ping_config config;
@@ -47,21 +28,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "ft_ping: failed to initialize session\n");
     return 1;
   }
-  g_session = session;
-
-  // sigaction を使用してシグナルハンドラーを設定
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = handle_sigint;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0; // SA_RESTART を含めない
-  sigaction(SIGINT, &sa, NULL);
-
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = handle_sigalrm;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  sigaction(SIGALRM, &sa, NULL);
+  tool_setup_signals(session);
 
   ftping_run(session);
 
