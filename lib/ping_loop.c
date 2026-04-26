@@ -242,7 +242,14 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
     struct icmphdr *icmp =
         session->net.socket_state.ops->extract_icmp(received->iov->iov_base, ret, &icmp_len);
 
-    if (icmp)
+    /* SOCK_DGRAM では kernel が echo.id を上書きするため照合不要(常に自分のもの)。
+     * SOCK_RAW は他プロセスの ping 応答もカーネル経由で届くため、ident 一致を
+     * 確認しないと他人の応答を自分の統計に計上してしまう。
+     * iputils is_ours() (ping_common.c:1016) と同じ判定。 */
+    int is_ours = session->net.socket_state.socktype == SOCK_DGRAM ||
+                  ntohs(icmp ? icmp->un.echo.id : 0) == session->net.ident;
+
+    if (icmp && is_ours)
       ping_stats_gather(
           &session->stats, icmp->un.echo.sequence,
           /* triptime */ 0, 0);
