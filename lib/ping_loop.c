@@ -248,8 +248,15 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
           /* triptime */ 0, 0);
 
     (void)from;
+    /* 2回目以降は non-blocking で連続吸い出し。
+     * カーネルの受信キューに溜まっている応答を 1 ループで全て処理することで
+     * in_flight を解消し、次の pinger 呼び出しを正しいタイミングに保つ。 */
     *received->polling = MSG_DONTWAIT;
-    break;
+
+    /* in_flight() == 0 なら、これ以上待ってもデータは来ないので抜ける。
+     * 残っていれば EAGAIN が返るまで recvmsg を繰り返す。 */
+    if (session->stats.ntransmitted - session->stats.nreceived <= 0)
+      break;
   }
   return (int)ret;
 }
