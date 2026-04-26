@@ -5,7 +5,7 @@ void ping_config_init(t_ping_config *config) {
   config->ttl = 64;
   config->hostname = NULL;
   config->count = 0; // if 0 => inf
-  config->interval_ms = 0;
+  config->interval_ms = 1000;
   config->tos = 0;
   config->deadline_sec = 0;
   config->lingertime_us = 10 * 1000000;

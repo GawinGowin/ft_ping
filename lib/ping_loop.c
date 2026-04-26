@@ -1,5 +1,7 @@
 #include "ping_loop.h"
 
+#include <stdio.h>
+
 #define MIN_INTERVAL_MS 10
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
 
@@ -9,11 +11,23 @@ static int should_use_fast_path(const t_ping_config *config, int next) {
 }
 
 static int wait_for_reply(int fd, int next, int *polling, int *recv_error) {
+  FILE *dbgfile = fopen("/tmp/ping_debug.log", "a");
+  if (dbgfile) {
+    fprintf(dbgfile, "[WAIT] poll timeout=%d\n", next);
+    fflush(dbgfile);
+    fclose(dbgfile);
+  }
   struct pollfd pset;
   pset.fd = fd;
   pset.events = POLLIN;
   pset.revents = 0;
-  if (poll(&pset, 1, next) < 1 || !(pset.revents & (POLLIN | POLLERR)))
+  int ret = poll(&pset, 1, next);
+  if (ret < 0) {
+    if (errno == EINTR)
+      return -1;
+    return 0;
+  }
+  if (ret == 0 || !(pset.revents & (POLLIN | POLLERR)))
     return 0;
   *polling = MSG_DONTWAIT;
   *recv_error = pset.revents & POLLERR;
@@ -28,19 +42,37 @@ void ping_run(t_ping_session *session) {
   t_ping_config *config = &session->config;
   t_socket_st *sock_st = &session->net.socket_state;
 
+  fprintf(stderr, "[PING_RUN] Starting with count=%ld\n", config->count);
+  fflush(stderr);
+
+  fprintf(stderr, "[PING_RUN] Computing packet size...\n");
+  fflush(stderr);
   size_t packet_size = sock_st->ops->packet_size(config->datalen);
+  fprintf(stderr, "[PING_RUN] Packet size: %zu\n", packet_size);
+  fflush(stderr);
+
+  fprintf(stderr, "[PING_RUN] Allocating send buffer...\n");
+  fflush(stderr);
   void *send_packet = malloc(packet_size);
   if (!send_packet)
     error(1, "malloc failed\n");
   memset(send_packet, 0, packet_size);
+  fprintf(stderr, "[PING_RUN] Send buffer allocated\n");
+  fflush(stderr);
 
+  fprintf(stderr, "[PING_RUN] Allocating receive buffer...\n");
+  fflush(stderr);
   void *recv_buf = malloc(packet_size);
   if (!recv_buf) {
     free(send_packet);
     error(1, "malloc failed\n");
   }
   memset(recv_buf, 0, packet_size);
+  fprintf(stderr, "[PING_RUN] Receive buffer allocated\n");
+  fflush(stderr);
 
+  fprintf(stderr, "[PING_RUN] Setting up iov/msg...\n");
+  fflush(stderr);
   struct iovec iov;
   struct msghdr msg;
   t_ping_receive received = {
@@ -51,17 +83,37 @@ void ping_run(t_ping_session *session) {
       .msg = &msg,
   };
   received.iov->iov_base = recv_buf;
+  fprintf(stderr, "[PING_RUN] Ready to enter main loop\n");
+  fflush(stderr);
 
+  FILE *dbgfile = fopen("/tmp/ping_debug.log", "a");
   while (1) {
+    if (dbgfile) {
+      fprintf(
+          dbgfile, "[LOOP] pid=%d tx=%d, rx=%d, count=%ld\n", getpid(), session->stats.ntransmitted,
+          session->stats.nreceived, config->count);
+      fflush(dbgfile);
+    }
+    fprintf(
+        stderr, "[LOOP] tx=%d, rx=%d, count=%ld\n", session->stats.ntransmitted,
+        session->stats.nreceived, config->count);
+    fflush(stderr);
     if (session->is_exiting)
       break;
     if (config->count && session->stats.nreceived >= config->count)
       break;
 
     do {
+      fprintf(stderr, "[SEND] sending packet...\n");
+      fflush(stderr);
       next = ping_send_one(session, send_packet, packet_size);
       next = ping_schedule_exit(config, &(session->stats), &(session->timer), next);
-    } while (next <= 0);
+      if (session->is_exiting)
+        break;
+    } while (next == 0);
+
+    if (session->is_exiting)
+      break;
 
     polling = 0;
     recv_error = 0;
@@ -80,10 +132,24 @@ void ping_run(t_ping_session *session) {
         }
       }
       if (!polling && (config->opt_adaptive || config->opt_flood_poll || config->interval_ms)) {
-        if (!wait_for_reply(sock_st->fd, next, &polling, &recv_error))
+        int ret = wait_for_reply(sock_st->fd, next, &polling, &recv_error);
+        if (ret < 0) // EINTR
+          continue;
+        if (ret == 0)
           continue;
       }
+    } else {
+      // next == 0 の場合も、ブロッキング recvmsg で止まらないよう poll を挟む
+      int wait_ms = (next > 0) ? next : 10;
+      int ret = wait_for_reply(sock_st->fd, wait_ms, &polling, &recv_error);
+      if (ret < 0) // EINTR
+        continue;
+      if (ret == 0) // timeout: ソケットにデータなし。次回 pinger に戻る
+        continue;
     }
+
+    if (session->is_exiting)
+      break;
     ping_receive_replies(session, &received);
     (void)recv_error;
   }

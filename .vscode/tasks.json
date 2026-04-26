@@ -12,6 +12,19 @@
       ]
     },
     {
+        "label": "Build tool_ft_ping (cmake)",
+        "type": "shell",
+        "command": "cmake",
+        "args": ["--build", ".", "--target", "tool_ft_ping", "--", "-j4"],
+        "options": {
+            "cwd": "${workspaceFolder}/build"
+        },
+        "group": {
+            "kind": "build"
+        },
+        "problemMatcher": ["$gcc"]
+    },
+    {
       "type": "cppbuild",
       "label": "ping_make",
       "command": "make",
