@@ -346,6 +346,24 @@ int ping_init(t_ping_session *session, char *target) {
 
   set_socket_buff(fd, config);
 
+  /* SO_SNDTIMEO: 送信が永久ブロックしないよう上限を 1 秒(または interval) に。 */
+  struct timeval tv;
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  if (config->interval_ms < 1000) {
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000 * SCHINT(config->interval_ms);
+  }
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+  /* SO_RCVTIMEO: recvmsg 自体にタイムアウト能力を持たせて poll() を省ける。
+   * iputils sock_setbufs (ping_common.c:548) と同じ最適化。失敗時は
+   * opt_flood_poll を立てて poll 経路に強制する。 */
+  tv.tv_sec = SCHINT(config->interval_ms) / 1000;
+  tv.tv_usec = 1000 * (SCHINT(config->interval_ms) % 1000);
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
+    config->opt_flood_poll = 1;
+
   net->socket_state.ops->extra_configure(fd);
 
   dns_lookup(target, &net->whereto);
