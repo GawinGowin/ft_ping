@@ -1,7 +1,6 @@
 #include "ping_loop.h"
 
 #include <linux/errqueue.h>
-#include <stdio.h>
 
 #define MIN_INTERVAL_MS 10
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
@@ -37,12 +36,6 @@ static int should_use_fast_path(const t_ping_config *config, int next) {
 }
 
 static int wait_for_reply(int fd, int next, int *polling, int *recv_error) {
-  FILE *dbgfile = fopen("/tmp/ping_debug.log", "a");
-  if (dbgfile) {
-    fprintf(dbgfile, "[WAIT] poll timeout=%d\n", next);
-    fflush(dbgfile);
-    fclose(dbgfile);
-  }
   struct pollfd pset;
   pset.fd = fd;
   pset.events = POLLIN;
