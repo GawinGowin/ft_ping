@@ -166,15 +166,20 @@ TEST_F(PingSendOneTest, InfiniteCountDoesNotStop) {
   EXPECT_GT(ret, 0);
 }
 
-/* B-6: fd を閉じた後に ping_send_one を呼ぶと -1 が返ること */
-TEST_F(PingSendOneTest, ClosedFdReturnsMinusOne) {
+/* B-6: fd を閉じた後に ping_send_one を呼ぶと、ntransmitted を増やさず
+ *      次の試行までのスケジュール時間 (>0) を返すこと。
+ *      iputils pinger (ping_common.c:438) と同じく、送信失敗時も負値ではなく
+ *      SCHINT(interval) を返して do-while (next <= 0) で永久ループしない設計。 */
+TEST_F(PingSendOneTest, ClosedFdReschedulesWithoutIncrement) {
   if (!can_create_socket())
     GTEST_SKIP() << "socket not available";
   session.config.interval_ms = 1000;
   close(session.net.socket_state.fd);
   session.net.socket_state.fd = -1;
+  int before = session.stats.ntransmitted;
   int ret = ping_send_one(&session, packet, packet_size);
-  EXPECT_LT(ret, 0);
+  EXPECT_GT(ret, 0);
+  EXPECT_EQ(session.stats.ntransmitted, before);
 }
 
 /* ─── C. ping_receive_replies() ────────────────────────────── */
