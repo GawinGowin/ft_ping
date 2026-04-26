@@ -1,9 +1,35 @@
 #include "ping_loop.h"
 
+#include <linux/errqueue.h>
 #include <stdio.h>
 
 #define MIN_INTERVAL_MS 10
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
+
+/* MSG_ERRQUEUE でエラーキューから 1 件読み出す。
+ * IP_RECVERR を有効にしている場合、宛先到達不能等のエラー応答や
+ * ローカルエラー(EMSGSIZE 等) はメインキューではなくエラーキューに入る。
+ * 読み出さないと POLLERR が立ち続けて poll が空転する原因になる。 */
+static int receive_error_msg(int fd) {
+  char cbuf[512];
+  char buf[1024];
+  struct iovec iov = {.iov_base = buf, .iov_len = sizeof(buf)};
+  struct sockaddr_in from;
+  struct msghdr msg;
+
+  memset(&msg, 0, sizeof(msg));
+  msg.msg_name = &from;
+  msg.msg_namelen = sizeof(from);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_control = cbuf;
+  msg.msg_controllen = sizeof(cbuf);
+
+  ssize_t res = recvmsg(fd, &msg, MSG_ERRQUEUE | MSG_DONTWAIT);
+  if (res < 0)
+    return -1;
+  return (int)res;
+}
 
 /* 適応的ping/floodモードでfastパスを使うか判定 */
 static int should_use_fast_path(const t_ping_config *config, int next) {
@@ -42,37 +68,20 @@ void ping_run(t_ping_session *session) {
   t_ping_config *config = &session->config;
   t_socket_st *sock_st = &session->net.socket_state;
 
-  fprintf(stderr, "[PING_RUN] Starting with count=%ld\n", config->count);
-  fflush(stderr);
-
-  fprintf(stderr, "[PING_RUN] Computing packet size...\n");
-  fflush(stderr);
   size_t packet_size = sock_st->ops->packet_size(config->datalen);
-  fprintf(stderr, "[PING_RUN] Packet size: %zu\n", packet_size);
-  fflush(stderr);
 
-  fprintf(stderr, "[PING_RUN] Allocating send buffer...\n");
-  fflush(stderr);
   void *send_packet = malloc(packet_size);
   if (!send_packet)
     error(1, "malloc failed\n");
   memset(send_packet, 0, packet_size);
-  fprintf(stderr, "[PING_RUN] Send buffer allocated\n");
-  fflush(stderr);
 
-  fprintf(stderr, "[PING_RUN] Allocating receive buffer...\n");
-  fflush(stderr);
   void *recv_buf = malloc(packet_size);
   if (!recv_buf) {
     free(send_packet);
     error(1, "malloc failed\n");
   }
   memset(recv_buf, 0, packet_size);
-  fprintf(stderr, "[PING_RUN] Receive buffer allocated\n");
-  fflush(stderr);
 
-  fprintf(stderr, "[PING_RUN] Setting up iov/msg...\n");
-  fflush(stderr);
   struct iovec iov;
   struct msghdr msg;
   t_ping_receive received = {
@@ -83,29 +92,14 @@ void ping_run(t_ping_session *session) {
       .msg = &msg,
   };
   received.iov->iov_base = recv_buf;
-  fprintf(stderr, "[PING_RUN] Ready to enter main loop\n");
-  fflush(stderr);
 
-  FILE *dbgfile = fopen("/tmp/ping_debug.log", "a");
   while (1) {
-    if (dbgfile) {
-      fprintf(
-          dbgfile, "[LOOP] pid=%d tx=%d, rx=%d, count=%ld\n", getpid(), session->stats.ntransmitted,
-          session->stats.nreceived, config->count);
-      fflush(dbgfile);
-    }
-    fprintf(
-        stderr, "[LOOP] tx=%d, rx=%d, count=%ld\n", session->stats.ntransmitted,
-        session->stats.nreceived, config->count);
-    fflush(stderr);
     if (session->is_exiting)
       break;
     if (config->count && session->stats.nreceived >= config->count)
       break;
 
     do {
-      fprintf(stderr, "[SEND] sending packet...\n");
-      fflush(stderr);
       next = ping_send_one(session, send_packet, packet_size);
       next = ping_schedule_exit(config, &(session->stats), &(session->timer), next);
       if (session->is_exiting)
@@ -150,8 +144,9 @@ void ping_run(t_ping_session *session) {
 
     if (session->is_exiting)
       break;
+    if (recv_error)
+      receive_error_msg(sock_st->fd);
     ping_receive_replies(session, &received);
-    (void)recv_error;
   }
 
   free(send_packet);
