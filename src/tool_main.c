@@ -63,11 +63,7 @@ int main(int argc, char **argv) {
   sa.sa_flags = 0;
   sigaction(SIGALRM, &sa, NULL);
 
-  fprintf(stderr, "[DEBUG] Starting ping with count=%ld\n", config.count);
-  fflush(stderr);
   ftping_run(session);
-  fprintf(stderr, "[DEBUG] ftping_run completed\n");
-  fflush(stderr);
 
   t_ftping_stats stats = ftping_get_stats(session);
 
