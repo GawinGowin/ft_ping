@@ -1,4 +1,5 @@
 #include "ft_ping.h"
+#include "tool_cleanup.h"
 #include "tool_getparam.h"
 #include "tool_output.h"
 #include "tool_signal.h"
@@ -28,6 +29,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "ft_ping: failed to initialize session\n");
     return 1;
   }
+  tool_cleanup_register(session);
   tool_setup_signals(session);
 
   ftping_set_reply_handler(session, tool_output_reply, &config);
@@ -39,6 +41,6 @@ int main(int argc, char **argv) {
   t_ftping_summary summary = ftping_get_summary(session);
   tool_output_finish(&summary);
 
-  ftping_cleanup(session);
+  tool_cleanup(session);
   return 0;
 }

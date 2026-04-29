@@ -26,3 +26,5 @@ void tool_setup_signals(t_ping_session *session) {
 
   signal(SIGQUIT, SIG_IGN);
 }
+
+void tool_signal_teardown(void) { s_session = NULL; }
