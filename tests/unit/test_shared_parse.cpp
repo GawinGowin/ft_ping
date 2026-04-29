@@ -4,8 +4,8 @@
 #include <string>
 
 extern "C" {
-#include "shared/shared_parse.h"
 #include "shared/shared_error.h"
+#include "shared/shared_parse.h"
 }
 
 namespace {
@@ -30,7 +30,7 @@ void errorWrapper(int status, const char *format, ...) {
   }
 }
 
-class ParseLongTest : public ::testing::Test {
+class SharedParseTest : public ::testing::Test {
 protected:
   void SetUp() override {
     captured_error_message.clear();
@@ -40,7 +40,7 @@ protected:
   }
 };
 
-TEST_F(ParseLongTest, ValidInput) {
+TEST_F(SharedParseTest, ValidInput) {
   const char *input = "123";
   const char *msg = "test message";
   const long min = 0;
@@ -51,7 +51,7 @@ TEST_F(ParseLongTest, ValidInput) {
   EXPECT_FALSE(exit_called);
 }
 
-TEST_F(ParseLongTest, BoundaryValues) {
+TEST_F(SharedParseTest, BoundaryValues) {
   EXPECT_EQ(parse_long("0", "test", 0, 1000, errorWrapper), 0);
   EXPECT_FALSE(exit_called);
 
@@ -59,7 +59,7 @@ TEST_F(ParseLongTest, BoundaryValues) {
   EXPECT_FALSE(exit_called);
 }
 
-TEST_F(ParseLongTest, NullOrEmptyInput) {
+TEST_F(SharedParseTest, NullOrEmptyInput) {
   const char *msg = "test message";
   const long min = 0;
   const long max = 1000;
@@ -77,7 +77,7 @@ TEST_F(ParseLongTest, NullOrEmptyInput) {
   EXPECT_EQ(captured_exit_status, 1);
 }
 
-TEST_F(ParseLongTest, InvalidInput) {
+TEST_F(SharedParseTest, InvalidInput) {
   const char *msg = "test message";
   const long min = 0;
   const long max = 1000;
@@ -93,7 +93,7 @@ TEST_F(ParseLongTest, InvalidInput) {
   EXPECT_TRUE(exit_called);
 }
 
-TEST_F(ParseLongTest, OutOfRangeValues) {
+TEST_F(SharedParseTest, OutOfRangeValues) {
   const char *msg = "test message";
   const long min = 10;
   const long max = 100;
@@ -111,5 +111,3 @@ TEST_F(ParseLongTest, OutOfRangeValues) {
   EXPECT_EQ(captured_exit_status, 1);
   EXPECT_TRUE(captured_error_message.find("out of range") != std::string::npos);
 }
-
-char *program_invocation_short_name;
