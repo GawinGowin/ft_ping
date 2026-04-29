@@ -3,12 +3,15 @@
 #include <gtest/gtest.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 extern "C" {
 #include "ping_config.h"
 #include "ping_loop.h"
 #include "shared/shared_error.h"
 }
+
+#include "mock_vsock.h"
 
 /* ソケット作成可否チェック（skip 判定用） */
 static bool can_create_socket() {
@@ -333,3 +336,44 @@ TEST_F(ShouldUseFastPathTest, LargeIntervalNextGeSchint) {
 }
 
 #endif /* TESTING */
+
+/* ─── F. Mock vtable: 実ソケット不要のテスト ─────────────────────────── */
+
+class PingSendOneMockTest : public ::testing::Test {
+protected:
+  t_ping_session session;
+  std::vector<char> packet_buf;
+
+  void SetUp() override {
+    mock_vsock_reset();
+    memset(&session, 0, sizeof(session));
+    ping_config_init(&session.config);
+    /* 擬似ソケット（fd=999, ops=&Mock_socket_ops）をセット。
+     * sendto() は fd=999 で必ず失敗するが、build_ipheader は呼ばれる。 */
+    mock_vsock_attach(&session.net.socket_state);
+    packet_buf.assign(64, 0);
+  }
+};
+
+/* F-1: ping_send_one() を呼ぶと Mock_socket_ops.build_ipheader が起動する */
+TEST_F(PingSendOneMockTest, BuildIpHeaderIsInvoked) {
+  ASSERT_EQ(g_mock_vsock_state.build_ipheader_calls, 0);
+
+  /* fd=999 で send_packet は失敗するので戻り値は問わない。
+   * build_ipheader が呼ばれたことだけ検証する。 */
+  ping_send_one(&session, packet_buf.data(), packet_buf.size());
+
+  EXPECT_EQ(g_mock_vsock_state.build_ipheader_calls, 1);
+  EXPECT_EQ(g_mock_vsock_state.last_seq, 0u);
+  EXPECT_EQ(g_mock_vsock_state.last_datalen, static_cast<size_t>(session.config.datalen));
+}
+
+/* F-2: count に達していたら build_ipheader は呼ばれない */
+TEST_F(PingSendOneMockTest, BuildIpHeaderSkippedWhenCountReached) {
+  session.config.count = 3;
+  session.stats.ntransmitted = 3;
+
+  ping_send_one(&session, packet_buf.data(), packet_buf.size());
+
+  EXPECT_EQ(g_mock_vsock_state.build_ipheader_calls, 0);
+}
