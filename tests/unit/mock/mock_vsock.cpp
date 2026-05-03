@@ -22,6 +22,12 @@ static struct icmphdr *mock_extract_icmp(void *packet, size_t packet_len, int *i
   return reinterpret_cast<struct icmphdr *>(packet);
 }
 
+static int mock_extract_ttl(void *packet, const struct msghdr *msg) {
+  (void)packet;
+  (void)msg;
+  return 0;
+}
+
 static size_t mock_packet_size(size_t datalen) {
   g_mock_vsock_state.packet_size_calls++;
   g_mock_vsock_state.last_packet_size_arg = datalen;
@@ -38,6 +44,7 @@ extern "C" {
 t_ping_socket_ops Mock_socket_ops = {
     .build_ipheader = mock_build_ipheader,
     .extract_icmp = mock_extract_icmp,
+    .extract_ttl = mock_extract_ttl,
     .packet_size = mock_packet_size,
     .extra_configure = mock_extra_configure,
 };

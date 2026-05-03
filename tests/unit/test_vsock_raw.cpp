@@ -19,8 +19,23 @@ protected:
 TEST_F(VsockRawOpsTest, VtablePointersAreSet) {
   EXPECT_NE(Ping_socket_raw_ops.build_ipheader, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.extract_icmp, nullptr);
+  EXPECT_NE(Ping_socket_raw_ops.extract_ttl, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.packet_size, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.extra_configure, nullptr);
+}
+
+// extract_ttl_raw: 受信パケット先頭の IP ヘッダーから TTL を取り出す
+TEST_F(VsockRawOpsTest, ExtractTtlReadsIpHeader) {
+  uint8_t buf[sizeof(struct iphdr) + sizeof(struct icmphdr)] = {};
+  struct iphdr *ip = (struct iphdr *)buf;
+  ip->ihl = 5;
+  ip->ttl = 64;
+
+  EXPECT_EQ(Ping_socket_raw_ops.extract_ttl(buf, nullptr), 64);
+}
+
+TEST_F(VsockRawOpsTest, ExtractTtlReturnsZeroForNullPacket) {
+  EXPECT_EQ(Ping_socket_raw_ops.extract_ttl(nullptr, nullptr), 0);
 }
 
 TEST_F(VsockRawOpsTest, PacketSizeIncludesIpHeader) {

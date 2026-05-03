@@ -34,6 +34,9 @@ typedef struct socket_st {
 struct ping_socket_ops {
   int (*build_ipheader)(void *packet, const t_ipheader_ctx *ctx);
   struct icmphdr *(*extract_icmp)(void *packet, size_t packet_len, int *icmp_len_out);
+  /* TTL 取得: RAW は packet 先頭の IP ヘッダーから、DGRAM は msg の cmsg から取り出す。
+   * 不明なら 0 を返す。 */
+  int (*extract_ttl)(void *packet, const struct msghdr *msg);
   size_t (*packet_size)(size_t datalen);
   int (*extra_configure)(int fd);
 };
