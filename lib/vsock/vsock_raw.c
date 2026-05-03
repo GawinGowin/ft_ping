@@ -46,6 +46,14 @@ struct icmphdr *extract_icmp_raw(void *packet, size_t packet_len, int *icmp_len_
   return (struct icmphdr *)((char *)packet + (ip->ihl * 4));
 }
 
+/* RAW 受信: パケット先頭が IP ヘッダーなので ttl をそのまま読む */
+int extract_ttl_raw(void *packet, const struct msghdr *msg) {
+  (void)msg;
+  if (packet == NULL)
+    return 0;
+  return ((struct iphdr *)packet)->ttl;
+}
+
 int extra_configure_raw(int fd) {
   int hdrincl = 1;
   if (setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &hdrincl, sizeof(hdrincl)) < 0) {
@@ -59,5 +67,6 @@ size_t packet_size_raw(size_t datalen) { return sizeof(t_ip_icmp) + datalen; }
 t_ping_socket_ops Ping_socket_raw_ops = {
     .build_ipheader = build_ipheader_raw,
     .extract_icmp = extract_icmp_raw,
+    .extract_ttl = extract_ttl_raw,
     .packet_size = packet_size_raw,
     .extra_configure = extra_configure_raw};

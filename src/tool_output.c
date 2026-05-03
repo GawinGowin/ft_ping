@@ -32,6 +32,9 @@ void tool_output_reply(const t_ftping_reply *reply, void *ctx) {
 
   printf("%d bytes from %s: icmp_seq=%u", reply->bytes, ip_str, reply->seq);
 
+  if (reply->ttl > 0)
+    printf(" ttl=%d", reply->ttl);
+
   if (reply->triptime_us >= 0)
     printf(" time=%.3f ms", reply->triptime_us / 1000.0);
 

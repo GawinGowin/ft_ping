@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <netinet/in.h>
+#include <string.h>
+#include <sys/socket.h>
 
 extern "C" {
 #include "vsock/vsock.h"
@@ -8,6 +10,7 @@ extern "C" {
 TEST(VsockDgramOpsTest, VtablePointersAreSet) {
   EXPECT_NE(Ping_socket_dgram_ops.build_ipheader, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.extract_icmp, nullptr);
+  EXPECT_NE(Ping_socket_dgram_ops.extract_ttl, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.packet_size, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.extra_configure, nullptr);
 }
@@ -64,6 +67,33 @@ TEST(VsockDgramOpsTest, ExtraConfigureIsNoop) {
 TEST(VsockDgramOpsTest, VtableDiffersFromRaw) {
   EXPECT_NE(Ping_socket_dgram_ops.build_ipheader, Ping_socket_raw_ops.build_ipheader);
   EXPECT_NE(Ping_socket_dgram_ops.extract_icmp, Ping_socket_raw_ops.extract_icmp);
+  EXPECT_NE(Ping_socket_dgram_ops.extract_ttl, Ping_socket_raw_ops.extract_ttl);
   EXPECT_NE(Ping_socket_dgram_ops.packet_size, Ping_socket_raw_ops.packet_size);
   EXPECT_NE(Ping_socket_dgram_ops.extra_configure, Ping_socket_raw_ops.extra_configure);
+}
+
+// extract_ttl_dgram: cmsg を走査して IP_TTL を取り出す
+TEST(VsockDgramOpsTest, ExtractTtlReadsCmsg) {
+  alignas(struct cmsghdr) uint8_t cbuf[CMSG_SPACE(sizeof(int))] = {};
+  struct msghdr msg = {};
+  msg.msg_control = cbuf;
+  msg.msg_controllen = sizeof(cbuf);
+
+  struct cmsghdr *c = CMSG_FIRSTHDR(&msg);
+  c->cmsg_level = IPPROTO_IP;
+  c->cmsg_type = IP_TTL;
+  c->cmsg_len = CMSG_LEN(sizeof(int));
+  int ttl_val = 57;
+  memcpy(CMSG_DATA(c), &ttl_val, sizeof(ttl_val));
+
+  EXPECT_EQ(Ping_socket_dgram_ops.extract_ttl(nullptr, &msg), 57);
+}
+
+TEST(VsockDgramOpsTest, ExtractTtlReturnsZeroWhenNoCmsg) {
+  struct msghdr msg = {};
+  EXPECT_EQ(Ping_socket_dgram_ops.extract_ttl(nullptr, &msg), 0);
+}
+
+TEST(VsockDgramOpsTest, ExtractTtlReturnsZeroForNullMsg) {
+  EXPECT_EQ(Ping_socket_dgram_ops.extract_ttl(nullptr, nullptr), 0);
 }

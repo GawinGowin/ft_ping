@@ -266,6 +266,7 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
       ping_stats_gather(&session->stats, seq, triptime, is_duplicate);
 
       if (session->reply_cb) {
+        int reply_ttl = session->net.socket_state.ops->extract_ttl(received->iov->iov_base, msg);
         t_ftping_reply ev = {
             .bytes = icmp_len,
             .from_addr = from ? from->sin_addr : (struct in_addr){0},
@@ -273,6 +274,7 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
             .triptime_us = triptime,
             .is_duplicate = is_duplicate,
             .recv_time = recv_time,
+            .ttl = reply_ttl,
         };
         session->reply_cb(&ev, session->reply_ctx);
       }
@@ -371,6 +373,10 @@ int ping_init(t_ping_session *session, char *target) {
   int on = 1;
   if (setsockopt(fd, IPPROTO_IP, IP_RECVERR, &on, sizeof(on)) < 0)
     error(1, "setsockopt IP_RECVERR failed: %s\n", strerror(errno));
+  /* DGRAM では受信 TTL を cmsg 経由でしか取れないので IP_RECVTTL を有効化する。
+   * RAW でも害はないが iputils と同じく失敗は警告に留める。 */
+  if (setsockopt(fd, IPPROTO_IP, IP_RECVTTL, &on, sizeof(on)) < 0)
+    error(0, "WARNING: setsockopt(IP_RECVTTL): %s\n", strerror(errno));
 
   set_socket_buff(fd, config);
 

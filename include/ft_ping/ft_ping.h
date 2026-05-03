@@ -48,6 +48,7 @@ typedef struct ftping_reply {
   long triptime_us;         /* RTT [μs]、未測定なら -1 */
   int is_duplicate;         /* 重複なら 1 */
   struct timeval recv_time; /* gettimeofday(recv 時)。-D 用 */
+  int ttl;                  /* 受信パケットの IP TTL、不明なら 0 */
 } t_ftping_reply;
 
 /* 最終統計用の DTO。tool_output_finish が消費する。 */
