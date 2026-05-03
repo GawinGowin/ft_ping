@@ -5,11 +5,12 @@
 #define _GNU_SOURCE
 #endif
 
+#include <errno.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <string.h>
 
 #ifdef TESTING
 #include <setjmp.h>

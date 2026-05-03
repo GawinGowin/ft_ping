@@ -21,7 +21,7 @@ include(GoogleTest)
 option(ENABLE_INTEGRATION_TESTS "Enable integration tests (requires CAP_NET_RAW)" OFF)
 
 set(FTPING_LIBS
-  testftping ftping_core tool_core
+  ftping_core_testing tool_core_testing
   CACHE INTERNAL "ft_ping libraries to link in tests"
 )
 

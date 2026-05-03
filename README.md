@@ -47,26 +47,33 @@ ft_pingは、標準的なpingコマンドのC言語による再実装プロジ�
 
 ## 🛠️ ビルド方法
 
-### Makefileを使用
+### Makefileを使用（直接コンパイル / CMake不使用）
 
 ```bash
-# リリースビルド
+# リリースビルド（ft_ping バイナリ）
 make
 
-# デバッグビルド（AddressSanitizer付き）
+# デバッグビルド（AddressSanitizer付き / ft_ping_debug）
 make debug
-
-# テスト実行
-make test
-
-# コードカバレッジ
-make cov
 
 # コードフォーマット
 make fmt
 ```
 
-### CMakeを使用
+### CMake経由（テスト・カバレッジ含む）
+
+```bash
+# CMake で全体をビルド
+make build
+
+# テスト実行（unit + tool）
+make test
+
+# コードカバレッジ
+make cov
+```
+
+### CMakeを直接使用
 
 ```bash
 mkdir build && cd build
@@ -99,20 +106,42 @@ make
 
 ## 🏗️ アーキテクチャ
 
-ft_pingは層別アーキテクチャを採用し、関心事の分離を実現しています：
+curl の設計を参考に、ライブラリ（`lib/`）と CLI ツール（`src/`）を分離した構成を採用しています。詳細は [`CLAUDE.md`](./CLAUDE.md) を参照。
 
 ```
-ft_ping.c        # メインエントリポイントとプログラムループ
-├── usecases.c   # ビジネスロジック層（引数解析、ping送信）
-├── infra.c      # インフラ層（ソケット作成、DNS解決）
-├── icmp.c       # ICMPパケット処理
-└── utils.c      # ユーティリティ関数
+ft_ping/
+├── include/ft_ping/         # 公開API（ライブラリのインターフェース）
+│   └── ft_ping.h
+├── lib/                     # libftping 本体（CLIを知らない）
+│   ├── ftping.c             #   公開APIのラッパー
+│   ├── ping_config.c/h      #   設定初期化
+│   ├── ping_loop.c/h        #   メイン ping ループ
+│   ├── ping_stats.c/h       #   統計
+│   ├── ping_icmp.c/h        #   ICMPパケット構築・解析
+│   ├── ping_schedule.c/h    #   終了スケジューリング
+│   ├── vsock/               #   ソケット種別の vtable 抽象化
+│   │   ├── vsock.c/h        #     バックエンド選択
+│   │   ├── vsock_raw.c      #     SOCK_RAW
+│   │   └── vsock_dgram.c    #     SOCK_DGRAM
+│   └── shared/              #   共有ユーティリティ
+│       ├── shared_error.c/h
+│       ├── shared_net.c/h
+│       └── shared_parse.c/h
+├── src/                     # CLIツール（lib/ の公開APIのみ使用）
+│   ├── tool_main.c          #   エントリーポイント
+│   ├── tool_getparam.c/h    #   引数パース
+│   ├── tool_signal.c/h      #   シグナルハンドラ
+│   ├── tool_output.c/h      #   表示フォーマット
+│   └── tool_cleanup.c/h     #   リソース解放
+└── tests/                   # unit / tool / integration
 ```
 
 ### 主要な型定義
 
-- `t_ping_master`: メイン状態構造体（ソケット、設定、ターゲット情報）
-- `t_icmp`: ICMPパケット構造体
+- `t_ping_session`: セッション状態（opaque、`lib/ping_loop.h`）
+- `t_ping_config`: 公開設定構造体
+- `t_ftping_summary`: 最終統計サマリー
+- `struct ping_socket_ops`: ソケット種別の vtable
 
 ## 🧪 テスト
 
@@ -156,4 +185,3 @@ make cov
 
 ---
 
-**注意**: 現在のバージョンはICMPパケットの送信機能のみを実装しています。受信とレスポンス処理機能は開発中です。

@@ -3,8 +3,9 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_library(shared STATIC ${SOURCES})
+add_library(shared_testing STATIC ${SOURCES})
+target_compile_definitions(shared_testing PUBLIC TESTING=1)
 
-target_include_directories(
-  shared
-  PUBLIC ${CMAKE_SOURCE_DIR}/lib
-)
+foreach(tgt shared shared_testing)
+  target_include_directories(${tgt} PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+endforeach()

@@ -1,47 +1,61 @@
 NAME := ft_ping
 DNAME := $(NAME)_debug
-BUILD_DIR = ./build
-BASE_PKG_DIR = cmd/ft_ping/
+BUILD_DIR := ./build
 
-SOURCE =
-SOURCE += cmd/ft_ping/ft_ping.c
-SOURCE += cmd/ft_ping/infra.c
-SOURCE += cmd/ft_ping/usecases.c
-SOURCE += cmd/ft_ping/utils.c
-SOURCE += cmd/ft_ping/icmp.c
-SOURCE += lib/shared/shared_net.c
-SOURCE +=
+# ── ソースファイル ──
+LIB_SRC := \
+	lib/ftping.c \
+	lib/ping_config.c \
+	lib/ping_icmp.c \
+	lib/ping_loop.c \
+	lib/ping_schedule.c \
+	lib/ping_stats.c \
+	lib/shared/shared_error.c \
+	lib/shared/shared_net.c \
+	lib/shared/shared_parse.c \
+	lib/vsock/vsock.c \
+	lib/vsock/vsock_dgram.c \
+	lib/vsock/vsock_raw.c
 
-HEADER =
-HEADER += cmd/ft_ping/ft_ping.h
+SRC_SRC := \
+	src/tool_cleanup.c \
+	src/tool_getparam.c \
+	src/tool_main.c \
+	src/tool_output.c \
+	src/tool_signal.c
 
-TESTS =
-TESTS += $(shell find ./tests -name '*.cpp' -o -name '*.hpp')
+SOURCE := $(LIB_SRC) $(SRC_SRC)
 
+HEADER := $(shell find lib src include -name '*.h')
+TESTS  := $(shell find tests -name '*.cpp' -o -name '*.hpp')
+
+# ── コンパイラ設定 ──
 CC := cc
-CFLAGS := -Wall -Wextra -Werror -MMD -MP -I$(BASE_PKG_DIR) -I./lib
-LFALGS := 
+INCLUDES := -Iinclude -Iinclude/ft_ping -Ilib -Isrc
+CFLAGS := -Wall -Wextra -Werror -MMD -MP $(INCLUDES)
+LFLAGS :=
 DFLAGS := -fdiagnostics-color=always -g3 -fsanitize=address
 
 OBJS := $(SOURCE:.c=.o)
 DOBJS := $(SOURCE:.c=_d.o)
-DEP = $(OBJS:.o=.d)
-DDEP = $(DOBJS:.o=.d)
+DEP := $(OBJS:.o=.d)
+DDEP := $(DOBJS:.o=.d)
 
-COV_INFO = coverage.info
-TEST_LOG = build/tests/Testing/Temporary/LastTest.log
+COV_INFO := coverage.info
+TEST_LOG := build/tests/Testing/Temporary/LastTest.log
 
+# ── 直接コンパイル経路（CMake 不使用） ──
 .PHONY: all
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $^ $(LFALGS) -o $@
+	$(CC) $(CFLAGS) $^ $(LFLAGS) -o $@
 
 .PHONY: debug
 debug: $(DNAME)
 
 $(DNAME): $(DOBJS)
-	$(CC) $(CFLAGS) $(DFLAGS) $^ $(LFALGS) -o $@
+	$(CC) $(CFLAGS) $(DFLAGS) $^ $(LFLAGS) -o $@
 
 -include $(DEP)
 %.o: %.c
@@ -67,10 +81,11 @@ re: fclean all
 fmt:
 	clang-format -i --style=file $(SOURCE) $(HEADER) $(TESTS)
 
+# ── CMake 経由（テスト・カバレッジ） ──
 .PHONY: build
 build:
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake ..  && make
+	@cd $(BUILD_DIR) && cmake .. && make
 
 .PHONY: test
 test: build
@@ -78,11 +93,10 @@ test: build
 
 $(TEST_LOG): test
 
-
 $(COV_INFO): $(TEST_LOG)
 	lcov --capture --directory . --output-file $(COV_INFO)
-	lcov --remove $(COV_INFO) '/usr/*' --output-file $(COV_INFO) # filter system-files
+	lcov --remove $(COV_INFO) '/usr/*' --output-file $(COV_INFO)
 
 .PHONY: cov
 cov: $(COV_INFO)
-	lcov --list $(COV_INFO) # debug info
+	lcov --list $(COV_INFO)
