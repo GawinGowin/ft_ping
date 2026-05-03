@@ -11,7 +11,6 @@ else()
 endif()
 
 target_include_directories(ToolTests PRIVATE
-  ${CMAKE_SOURCE_DIR}/cmd/ft_ping
   ${CMAKE_SOURCE_DIR}/lib
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/include

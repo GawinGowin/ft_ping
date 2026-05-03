@@ -3,8 +3,9 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_library(vsock STATIC ${SOURCES})
+add_library(vsock_testing STATIC ${SOURCES})
+target_compile_definitions(vsock_testing PUBLIC TESTING=1)
 
-target_include_directories(
-  vsock
-  PUBLIC ${CMAKE_SOURCE_DIR}/lib
-)
+foreach(tgt vsock vsock_testing)
+  target_include_directories(${tgt} PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+endforeach()
