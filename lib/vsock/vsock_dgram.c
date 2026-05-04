@@ -5,12 +5,12 @@
 #include "ping_icmp.h"
 
 /* DGRAM は IP ヘッダー不要。ICMP ヘッダーのみ構築する */
-int build_ipheader_dgram(void *packet, const t_ipheader_ctx *ctx) {
+int build_ipicmp_dgram(void *packet, const t_ipheader_ctx *ctx) {
   if (packet == NULL || ctx == NULL)
     return -1;
   struct icmphdr *icmp_hdr = (struct icmphdr *)packet;
   unsigned char *payload = (unsigned char *)(icmp_hdr + 1);
-  ping_icmp_build_echo(icmp_hdr, payload, ctx->seq, ctx->datalen, &ctx->ts);
+  ping_icmp_build_echo(icmp_hdr, payload, ctx->seq, ctx->ident, ctx->datalen, &ctx->ts);
   return 0;
 }
 
@@ -47,9 +47,22 @@ int extra_configure_dgram(int fd) {
 
 size_t packet_size_dgram(size_t datalen) { return sizeof(struct icmphdr) + datalen; }
 
+int set_ident_dgram(int fd, uint16_t ident) {
+  struct sockaddr_in source_addr;
+  memset(&source_addr, 0, sizeof(source_addr));
+  source_addr.sin_family = AF_INET;
+  source_addr.sin_port = htons(ident);
+  source_addr.sin_addr.s_addr = INADDR_ANY;
+  if (bind(fd, (struct sockaddr *)&source_addr, sizeof(source_addr)) < 0) {
+    return 1;
+  }
+  return 0;
+}
+
 t_ping_socket_ops Ping_socket_dgram_ops = {
-    .build_ipheader = build_ipheader_dgram,
+    .build_ipicmp = build_ipicmp_dgram,
     .extract_icmp = extract_icmp_dgram,
     .extract_ttl = extract_ttl_dgram,
     .packet_size = packet_size_dgram,
-    .extra_configure = extra_configure_dgram};
+    .extra_configure = extra_configure_dgram,
+    .set_ident = set_ident_dgram};

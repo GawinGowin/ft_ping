@@ -1,7 +1,6 @@
 #include "vsock/vsock.h"
 
-// TODO: 設定されたオプションパラメータに応じてどちらのソケットで作成するか選択するように
-int ping_socket_select(t_socket_st *socket_state) {
+int ping_socket_select(t_socket_st *socket_state, int need_rawsock) {
   socket_state->fd = -1;
   socket_state->socktype = -1;
 
@@ -11,8 +10,8 @@ int ping_socket_select(t_socket_st *socket_state) {
     socket_state->ops = &Ping_socket_raw_ops;
     return socket_state->fd;
   }
-  // SOCK_DGRAM で作る
-  if (errno == EPERM || errno == EACCES) {
+  // fall back
+  if ((errno == EPERM || errno == EACCES) && !need_rawsock) {
     socket_state->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (socket_state->fd >= 0) {
       socket_state->socktype = SOCK_DGRAM;

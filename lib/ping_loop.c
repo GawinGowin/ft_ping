@@ -102,6 +102,15 @@ void ping_run(t_ping_session *session) {
   };
   received.iov->iov_base = recv_buf;
 
+  /* preload: 初回に複数パケットを連続送信 */
+  if (config->preload > 0) {
+    for (int i = 0; i < config->preload; i++) {
+      ping_send_one(session, send_packet, packet_size);
+      if (session->is_exiting)
+        break;
+    }
+  }
+
   while (1) {
     if (session->is_exiting)
       break;
@@ -182,14 +191,19 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
 
   if (timer->prev_send_time.tv_sec == 0 && timer->prev_send_time.tv_usec == 0) {
     gettimeofday(&timer->prev_send_time, NULL);
+    /* adaptive: 初回応答受信前は送信時刻を参照点として使う */
+    timer->prev_reply_time = timer->prev_send_time;
     t_ipheader_ctx ctx = {
         .seq = seq,
+        .ident = net->ident,
+        .ttl = config->ttl,
+        .tos = config->tos,
         .datalen = config->datalen,
         .ts = timer->prev_send_time,
         .src = net->from.sin_addr,
         .dst = net->whereto.sin_addr,
     };
-    net->socket_state.ops->build_ipheader(packet, &ctx);
+    net->socket_state.ops->build_ipicmp(packet, &ctx);
     if (send_packet(packet, packet_size, net->socket_state.fd, &net->whereto) < 0)
       return SCHINT(config->interval_ms);
     session->stats.ntransmitted++;
@@ -198,20 +212,26 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
 
   struct timeval now;
   gettimeofday(&now, NULL);
-  long delta_ms = (now.tv_sec - timer->prev_send_time.tv_sec) * 1000 +
-                  (now.tv_usec - timer->prev_send_time.tv_usec) / 1000;
+  /* adaptive モード時: 前回の応答受信時刻を基準にインターバルを計算
+   * （応答が早く返れば早く次を送る、遅ければ次の送信も遅らせる） */
+  const struct timeval *ref =
+      config->opt_adaptive ? &timer->prev_reply_time : &timer->prev_send_time;
+  long delta_ms = (now.tv_sec - ref->tv_sec) * 1000 + (now.tv_usec - ref->tv_usec) / 1000;
   if (delta_ms < config->interval_ms)
     return config->interval_ms - (int)delta_ms;
 
   timer->prev_send_time = now;
   t_ipheader_ctx ctx = {
       .seq = seq,
+      .ident = net->ident,
+      .ttl = config->ttl,
+      .tos = config->tos,
       .datalen = config->datalen,
       .ts = timer->prev_send_time,
       .src = net->from.sin_addr,
       .dst = net->whereto.sin_addr,
   };
-  net->socket_state.ops->build_ipheader(packet, &ctx);
+  net->socket_state.ops->build_ipicmp(packet, &ctx);
   if (send_packet(packet, packet_size, net->socket_state.fd, &net->whereto) < 0)
     return -1;
   session->stats.ntransmitted++;
@@ -258,7 +278,17 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
      * 確認しないと他人の応答を自分の統計に計上してしまう。
      * iputils is_ours() (ping_common.c:1016) と同じ判定。 */
     int is_ours = session->net.socket_state.socktype == SOCK_DGRAM ||
-                  ntohs(icmp ? icmp->un.echo.id : 0) == session->net.ident;
+                  (icmp && ntohs(icmp->un.echo.id) == session->net.ident);
+
+    /* verbose モード: ECHOREPLY 以外の ICMP も表示する。
+     * iputils pr_icmph() (ping_common.c) と同じく、type/code を可読形式で出す。 */
+    if (session->config.opt_verbose && icmp && icmp->type != ICMP_ECHOREPLY &&
+        icmp->type != ICMP_ECHO) {
+      char addr_buf[INET_ADDRSTRLEN] = "?";
+      if (from)
+        inet_ntop(AF_INET, &from->sin_addr, addr_buf, sizeof(addr_buf));
+      fprintf(stderr, "From %s: icmp_seq=? Type=%d Code=%d\n", addr_buf, icmp->type, icmp->code);
+    }
 
     if (icmp && is_ours && icmp->type == ICMP_ECHOREPLY) {
       uint16_t seq = ntohs(icmp->un.echo.sequence);
@@ -279,6 +309,10 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
       }
 
       ping_stats_gather(&session->stats, seq, triptime, is_duplicate);
+
+      /* adaptive モード時: 応答受信時刻を次回送信タイミングの基準として記録 */
+      if (session->config.opt_adaptive)
+        session->timer.prev_reply_time = recv_time;
 
       if (session->reply_cb) {
         int reply_ttl = session->net.socket_state.ops->extract_ttl(received->iov->iov_base, msg);
@@ -342,15 +376,18 @@ static void set_socket_buff(int fd, t_ping_config *config) {
     error(1, "Buffer size too large: %zu\n", send);
 
   int sndbuf = config->sndbuf ? config->sndbuf : (int)send;
+  // -Sオプション: 検証方法: `sudo strace -e setsockopt ./ft_ping -S 4096 <destination>`
   if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0)
     error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
 
   int hold;
-  if ((int)send > INT_MAX / config->preload) {
+  /* preload=0 (未指定時) はバッファ計算上 1 として扱う */
+  int eff_preload = config->preload > 0 ? config->preload : 1;
+  if ((int)send > INT_MAX / eff_preload) {
     error(0, "WARNING: buffer size overflow, reduce packet size or preload\n");
     hold = INT_MAX;
   } else {
-    hold = (int)send * config->preload;
+    hold = (int)send * eff_preload;
   }
 
   int rcvbuf = hold;
@@ -374,12 +411,19 @@ int ping_init(t_ping_session *session, char *target) {
   session->stats.tmin = LONG_MAX;
   session->stats.timing = ((size_t)config->datalen >= sizeof(struct timeval)) ? 1 : 0;
 
-  net->ident = config->ident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
-
-  if (ping_socket_select(&net->socket_state) < 0)
-    error(1, "Failed to create socket: %s\n", strerror(errno));
+  if (ping_socket_select(&net->socket_state, config->opt_useident) < 0) {
+    error(0, "socktype: SOCK_RAW\n");
+    error(0, "socket: Operation not permitted\n");
+    error(2, "=> missing cap_net_raw+p capability or setuid?\n");
+  }
 
   int fd = net->socket_state.fd;
+
+  net->ident = config->opt_useident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
+  int err = net->socket_state.ops->set_ident(fd, net->ident);
+  if (err) {
+    error(err, "bind failed: %s\n", strerror(errno));
+  }
 
   if (setsockopt(fd, IPPROTO_IP, IP_TTL, &config->ttl, sizeof(config->ttl)) < 0)
     error(1, "setsockopt IP_TTL failed: %s\n", strerror(errno));

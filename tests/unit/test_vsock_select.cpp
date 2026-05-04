@@ -7,10 +7,10 @@ extern "C" {
 
 class VsockSelectTest : public ::testing::Test {};
 
-// ping_socket_select が成功したとき、fd が有効で ops が設定されること
+// ping_socket_select が成功したと,0き、fd が有効で ops が設定されること
 TEST_F(VsockSelectTest, SelectSetsValidFdAndOps) {
   t_socket_st state = {};
-  int ret = ping_socket_select(&state);
+  int ret = ping_socket_select(&state, 0);
 
   if (ret < 0) {
     GTEST_SKIP() << "socket creation requires privilege or is unavailable";
@@ -32,7 +32,7 @@ TEST_F(VsockSelectTest, RawSocketGetsRawOps) {
   }
   close(fd);
 
-  ping_socket_select(&state);
+  ping_socket_select(&state, 0);
   EXPECT_EQ(state.ops, &Ping_socket_raw_ops);
   close(state.fd);
 }
@@ -50,7 +50,7 @@ TEST_F(VsockSelectTest, DgramSocketGetsDgramOps) {
   }
 
   t_socket_st state = {};
-  int ret = ping_socket_select(&state);
+  int ret = ping_socket_select(&state, 0);
   if (ret < 0) {
     GTEST_SKIP() << "neither RAW nor DGRAM socket available";
   }
@@ -63,7 +63,7 @@ TEST_F(VsockSelectTest, DgramSocketGetsDgramOps) {
 // (通常環境では再現困難なので ops ポインタの一貫性を確認)
 TEST_F(VsockSelectTest, OpsMatchSocktype) {
   t_socket_st state = {};
-  int ret = ping_socket_select(&state);
+  int ret = ping_socket_select(&state, 0);
   if (ret < 0) {
     GTEST_SKIP() << "socket not available";
   }

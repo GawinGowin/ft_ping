@@ -100,7 +100,7 @@ TEST_F(ToolParseArgsTest, IdentFlag) {
   char **argv;
   make_argv({"ft_ping", "-e", "1234", "host"}, &argc, &argv);
   EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
-  EXPECT_EQ(config.ident, htons(1234));
+  EXPECT_EQ(config.ident, 1234);
 }
 
 TEST_F(ToolParseArgsTest, SndbufFlag) {
@@ -355,5 +355,5 @@ TEST_F(ToolParseArgsTest, UnrelatedFieldsUnchanged) {
   EXPECT_EQ(config.datalen, 56);
   EXPECT_EQ(config.ttl, 64);
   EXPECT_EQ(config.count, 0);
-  EXPECT_EQ(config.preload, 1);
+  EXPECT_EQ(config.preload, 0);
 }

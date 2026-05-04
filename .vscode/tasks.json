@@ -12,10 +12,10 @@
       ]
     },
     {
-        "label": "Build tool_ft_ping (cmake)",
+        "label": "Build ft_ping (cmake)",
         "type": "shell",
         "command": "cmake",
-        "args": ["--build", ".", "--target", "tool_ft_ping", "--", "-j4"],
+        "args": ["--build", ".", "--target", "ft_ping", "--", "-j4"],
         "options": {
             "cwd": "${workspaceFolder}/build"
         },

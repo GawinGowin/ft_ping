@@ -4,7 +4,7 @@
 
 MockVsockState g_mock_vsock_state = {};
 
-static int mock_build_ipheader(void *packet, const t_ipheader_ctx *ctx) {
+static int mock_build_ipicmp(void *packet, const t_ipheader_ctx *ctx) {
   g_mock_vsock_state.build_ipheader_calls++;
   if (ctx) {
     g_mock_vsock_state.last_seq = ctx->seq;
@@ -40,13 +40,21 @@ static int mock_extra_configure(int fd) {
   return 0;
 }
 
+static int mock_set_ident(int fd, uint16_t ident) {
+  (void)fd;
+  (void)ident;
+  g_mock_vsock_state.set_ident_calls++;
+  return 0;
+}
+
 extern "C" {
 t_ping_socket_ops Mock_socket_ops = {
-    .build_ipheader = mock_build_ipheader,
+    .build_ipicmp = mock_build_ipicmp,
     .extract_icmp = mock_extract_icmp,
     .extract_ttl = mock_extract_ttl,
     .packet_size = mock_packet_size,
     .extra_configure = mock_extra_configure,
+    .set_ident = mock_set_ident,
 };
 }
 

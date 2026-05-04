@@ -22,6 +22,7 @@
 
 typedef struct ping_timer {
   struct timeval prev_send_time;
+  struct timeval prev_reply_time;
   unsigned long schedule_waittime;
 } t_ping_timer;
 

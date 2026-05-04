@@ -16,7 +16,7 @@ extern "C" {
 /* ソケット作成可否チェック（skip 判定用） */
 static bool can_create_socket() {
   t_socket_st st = {};
-  int ret = ping_socket_select(&st);
+  int ret = ping_socket_select(&st, 0);
   if (ret >= 0) {
     close(st.fd);
     return true;

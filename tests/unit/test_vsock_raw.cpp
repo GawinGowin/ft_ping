@@ -17,7 +17,7 @@ protected:
 };
 
 TEST_F(VsockRawOpsTest, VtablePointersAreSet) {
-  EXPECT_NE(Ping_socket_raw_ops.build_ipheader, nullptr);
+  EXPECT_NE(Ping_socket_raw_ops.build_ipicmp, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.extract_icmp, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.extract_ttl, nullptr);
   EXPECT_NE(Ping_socket_raw_ops.packet_size, nullptr);
@@ -44,7 +44,7 @@ TEST_F(VsockRawOpsTest, PacketSizeIncludesIpHeader) {
   EXPECT_EQ(size, sizeof(t_ip_icmp) + datalen);
 }
 
-// build_ipheader_raw は IP ヘッダーのみを書く（ICMP は呼び出し元が書く）
+// build_ipicmp_raw は IP ヘッダーのみを書く（ICMP は呼び出し元が書く）
 TEST_F(VsockRawOpsTest, BuildIpheaderSetsIpFields) {
   size_t datalen = 56;
   size_t pkt_size = Ping_socket_raw_ops.packet_size(datalen);
@@ -52,7 +52,7 @@ TEST_F(VsockRawOpsTest, BuildIpheaderSetsIpFields) {
   ASSERT_NE(buf, nullptr);
 
   t_ipheader_ctx ctx = make_ctx(datalen);
-  int ret = Ping_socket_raw_ops.build_ipheader(buf, &ctx);
+  int ret = Ping_socket_raw_ops.build_ipicmp(buf, &ctx);
   EXPECT_EQ(ret, 0);
 
   t_ip_icmp *pkt = (t_ip_icmp *)buf;
@@ -67,8 +67,8 @@ TEST_F(VsockRawOpsTest, BuildIpheaderSetsIpFields) {
 
 TEST_F(VsockRawOpsTest, BuildIpheaderFailsOnNull) {
   t_ipheader_ctx ctx = make_ctx(56);
-  EXPECT_EQ(Ping_socket_raw_ops.build_ipheader(NULL, &ctx), -1);
-  EXPECT_EQ(Ping_socket_raw_ops.build_ipheader((void *)1, NULL), -1);
+  EXPECT_EQ(Ping_socket_raw_ops.build_ipicmp(NULL, &ctx), -1);
+  EXPECT_EQ(Ping_socket_raw_ops.build_ipicmp((void *)1, NULL), -1);
 }
 
 // extract_icmp_raw: IP ヘッダー（ihl*4 バイト）をスキップして ICMP へのポインタを返す

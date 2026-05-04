@@ -11,7 +11,7 @@ long parse_long(
   if (str == NULL || *str == '\0') {
     errorfn(1, "%s: %s\n", msg, str);
   }
-  long val = strtol(str, &endptr, 10);
+  long val = strtol(str, &endptr, 0);
   if (errno || str == endptr || (endptr && *endptr)) {
     errorfn(1, "%s : %s\n", msg, endptr);
   }

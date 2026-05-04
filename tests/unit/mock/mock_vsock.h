@@ -11,6 +11,7 @@ struct MockVsockState {
   int extract_icmp_calls;
   int packet_size_calls;
   int extra_configure_calls;
+  int set_ident_calls;
 
   /* 直近呼び出しの引数キャプチャ */
   size_t last_packet_size_arg;
