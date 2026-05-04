@@ -9,37 +9,37 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
   while ((ch = getopt(*argc, *argv, "h?AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
-    case 'A':
+    case 'A': // TODO: -A                 use adaptive ping
       config->opt_adaptive = 1;
       break;
-    case 'v':
+    case 'v': // TODO: -v                 verbose output
       config->opt_verbose = 1;
       break;
-    case 'D':
+    case 'D': // -D                 print timestamps
       config->opt_ptimeofday = 1;
       break;
-    case 't':
+    case 't': // TODO: -t <ttl>           define time to live
       config->ttl = parse_long(optarg, "invalid argument", 1, 255, error);
       break;
-    case 'Q':
+    case 'Q': // TODO: -Q <tclass>        use quality of service <tclass> bits
       config->tos = parse_long(optarg, "invalid argument", 0, 255, error);
       break;
-    case 'c':
+    case 'c': // -c <count>         stop after <count> replies
       config->count = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
-    case 'e':
+    case 'e': // TODO: -e <identifier>    define identifier for ping session,
       config->ident = htons((uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
       break;
-    case 'S':
+    case 'S': // -S <size>          use <size> as SO_SNDBUF socket option value
       config->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
-    case 's':
+    case 's': // -s <size>          use <size> as number of data bytes to be sent
       config->datalen = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
-    case 'l':
+    case 'l': // TODO: -l <preload>       send <preload> number of packages while waiting replies
       config->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
       break;
-    case 'w':
+    case 'w': // OK: -w <deadline>      reply wait <deadline> in seconds
       config->deadline_sec = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
     default:
