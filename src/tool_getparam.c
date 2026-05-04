@@ -18,10 +18,10 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
     case 'D': // -D                 print timestamps
       config->opt_ptimeofday = 1;
       break;
-    case 't': // TODO: -t <ttl>           define time to live
+    case 't': // -t <ttl>           define time to live
       config->ttl = parse_long(optarg, "invalid argument", 1, 255, error);
       break;
-    case 'Q': // TODO: -Q <tclass>        use quality of service <tclass> bits
+    case 'Q': // -Q <tclass>        use quality of service <tclass> bits
       config->tos = parse_long(optarg, "invalid argument", 0, 255, error);
       break;
     case 'c': // -c <count>         stop after <count> replies
