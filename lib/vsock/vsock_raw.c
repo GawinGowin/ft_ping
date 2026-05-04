@@ -22,11 +22,11 @@ static int set_ip_header(void *packet, const t_ipheader_ctx *ctx) {
 
   pkt->ip.version = 4;
   pkt->ip.ihl = 5;
-  pkt->ip.tos = 0;
+  pkt->ip.tos = (unsigned char)ctx->tos;
   pkt->ip.tot_len = htons(sizeof(t_ip_icmp) + ctx->datalen);
   pkt->ip.id = htons(getpid());
   pkt->ip.frag_off = 0;
-  pkt->ip.ttl = 64;
+  pkt->ip.ttl = (unsigned char)ctx->ttl;
   pkt->ip.protocol = IPPROTO_ICMP;
   pkt->ip.check = 0;
   pkt->ip.saddr = ctx->src.s_addr;

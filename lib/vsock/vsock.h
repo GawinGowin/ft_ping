@@ -17,6 +17,8 @@
 typedef struct ipheader_ctx {
   uint16_t seq;
   uint16_t ident;
+  int ttl;
+  int tos;
   size_t datalen;
   struct timeval ts;
   struct in_addr src;
