@@ -100,3 +100,11 @@ $(COV_INFO): $(TEST_LOG)
 .PHONY: cov
 cov: $(COV_INFO)
 	lcov --list $(COV_INFO)
+
+.PHONY: e2e
+e2e: $(NAME)
+	cd tests/e2e && sudo -E $$(command -v uv) run pytest -v
+
+.PHONY: e2e-deps
+e2e-deps:
+	cd tests/e2e && uv sync

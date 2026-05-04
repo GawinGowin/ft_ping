@@ -1,2 +1,5 @@
+[tools]
+uv = "0.10.4"
+
 [env]
 LC_ALL="C"

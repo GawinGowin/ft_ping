@@ -1,0 +1,15 @@
+[project]
+name = "ft-ping-e2e"
+version = "0.1.0"
+description = "End-to-end tests comparing ft_ping with system ping(8) via netns + tcpdump"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pytest>=9.0.3",
+    "scapy>=2.7.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
+addopts = "-ra -q"
