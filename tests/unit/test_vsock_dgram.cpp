@@ -8,11 +8,12 @@ extern "C" {
 }
 
 TEST(VsockDgramOpsTest, VtablePointersAreSet) {
-  EXPECT_NE(Ping_socket_dgram_ops.build_ipheader, nullptr);
+  EXPECT_NE(Ping_socket_dgram_ops.build_ipicmp, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.extract_icmp, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.extract_ttl, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.packet_size, nullptr);
   EXPECT_NE(Ping_socket_dgram_ops.extra_configure, nullptr);
+  EXPECT_NE(Ping_socket_dgram_ops.set_ident, nullptr);
 }
 
 // DGRAM は IP ヘッダを自分で作らないので RAW より小さい
@@ -33,7 +34,7 @@ TEST(VsockDgramOpsTest, BuildIpheaderBuildsIcmpHeader) {
   t_ipheader_ctx ctx = {};
   ctx.datalen = 56;
   ctx.seq = 1;
-  int ret = Ping_socket_dgram_ops.build_ipheader(buf, &ctx);
+  int ret = Ping_socket_dgram_ops.build_ipicmp(buf, &ctx);
   EXPECT_EQ(ret, 0);
 
   // ICMP ヘッダーがパケット先頭に構築されること
@@ -65,7 +66,7 @@ TEST(VsockDgramOpsTest, ExtraConfigureIsNoop) {
 
 // RAW と DGRAM で関数ポインタが異なること
 TEST(VsockDgramOpsTest, VtableDiffersFromRaw) {
-  EXPECT_NE(Ping_socket_dgram_ops.build_ipheader, Ping_socket_raw_ops.build_ipheader);
+  EXPECT_NE(Ping_socket_dgram_ops.build_ipicmp, Ping_socket_raw_ops.build_ipicmp);
   EXPECT_NE(Ping_socket_dgram_ops.extract_icmp, Ping_socket_raw_ops.extract_icmp);
   EXPECT_NE(Ping_socket_dgram_ops.extract_ttl, Ping_socket_raw_ops.extract_ttl);
   EXPECT_NE(Ping_socket_dgram_ops.packet_size, Ping_socket_raw_ops.packet_size);

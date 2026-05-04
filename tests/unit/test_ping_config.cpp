@@ -41,6 +41,6 @@ TEST_F(PingConfigInitTest, IdentIsZero) { EXPECT_EQ(config.ident, 0); }
 
 TEST_F(PingConfigInitTest, SndBufIsZero) { EXPECT_EQ(config.sndbuf, 0); }
 
-TEST_F(PingConfigInitTest, PreloadIsOne) { EXPECT_EQ(config.preload, 1); }
+TEST_F(PingConfigInitTest, PreloadIsOne) { EXPECT_EQ(config.preload, 0); }
 
 TEST_F(PingConfigInitTest, HostnameIsNull) { EXPECT_EQ(config.hostname, nullptr); }

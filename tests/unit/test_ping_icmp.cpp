@@ -81,8 +81,8 @@ protected:
 
   void TearDown() override { delete[] buf_; }
 
-  void build(uint16_t seq = 0, size_t datalen = kDatalen) {
-    ping_icmp_build_echo(icmp_, payload_, seq, datalen, &ts_);
+  void build(uint16_t seq = 0, uint16_t ident = 0, size_t datalen = kDatalen) {
+    ping_icmp_build_echo(icmp_, payload_, seq, ident, datalen, &ts_);
   }
 
   struct timeval ts_;
@@ -116,9 +116,9 @@ TEST_F(BuildEchoTest, ChecksumVerifies) {
   EXPECT_EQ(embedded, recomputed);
 }
 
-TEST_F(BuildEchoTest, IdMatchesPid) {
+TEST_F(BuildEchoTest, IdMatches) {
   build();
-  EXPECT_EQ(ntohs(icmp_->un.echo.id), (uint16_t)getpid());
+  EXPECT_EQ(ntohs(icmp_->un.echo.id), 0);
 }
 
 TEST_F(BuildEchoTest, SequenceIsSeqPlusOne) {
@@ -145,7 +145,7 @@ TEST_F(BuildEchoTest, PayloadFilledWithPattern) {
   uint8_t small_buf[sizeof(struct icmphdr) + small] = {};
   struct icmphdr *h = (struct icmphdr *)small_buf;
   unsigned char *p = small_buf + sizeof(struct icmphdr);
-  ping_icmp_build_echo(h, p, 0, small, &ts_);
+  ping_icmp_build_echo(h, p, 0, 0, small, &ts_);
   for (size_t i = 0; i < small; i++)
     EXPECT_EQ(p[i], (unsigned char)(i % 255)) << "at index " << i;
 }
@@ -164,7 +164,7 @@ TEST_F(BuildEchoTest, MinimalDatlenOneByte) {
   uint8_t b[sizeof(struct icmphdr) + tiny] = {};
   struct icmphdr *h = (struct icmphdr *)b;
   unsigned char *p = b + sizeof(struct icmphdr);
-  ping_icmp_build_echo(h, p, 0, tiny, &ts_);
+  ping_icmp_build_echo(h, p, 0, 0, tiny, &ts_);
   EXPECT_EQ(h->type, ICMP_ECHO);
   // checksum verifies
   uint16_t cs = h->checksum;
