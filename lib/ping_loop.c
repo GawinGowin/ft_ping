@@ -102,6 +102,15 @@ void ping_run(t_ping_session *session) {
   };
   received.iov->iov_base = recv_buf;
 
+  /* preload: 初回に複数パケットを連続送信 */
+  if (config->preload > 0) {
+    for (int i = 0; i < config->preload; i++) {
+      ping_send_one(session, send_packet, packet_size);
+      if (session->is_exiting)
+        break;
+    }
+  }
+
   while (1) {
     if (session->is_exiting)
       break;
