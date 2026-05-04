@@ -8,6 +8,7 @@
 #include "ft_ping.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>

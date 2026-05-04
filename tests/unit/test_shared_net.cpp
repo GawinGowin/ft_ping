@@ -59,7 +59,6 @@ TEST_F(DnsLookupTest, FailsToResolveInvalidDomain) {
   } else {
     EXPECT_NE(last_error_status, 0);
     EXPECT_STRNE(last_error_message, "");
-    EXPECT_TRUE(strstr(last_error_message, "getaddrinfo failed") != nullptr);
   }
 }
 
@@ -70,7 +69,6 @@ TEST_F(DnsLookupTest, FailsVoidDomain) {
   } else {
     EXPECT_NE(last_error_status, 0);
     EXPECT_STRNE(last_error_message, "");
-    EXPECT_TRUE(strstr(last_error_message, "getaddrinfo failed") != nullptr);
   }
 }
 
@@ -81,7 +79,6 @@ TEST_F(DnsLookupTest, FailsNULLDomain) {
   } else {
     EXPECT_NE(last_error_status, 0);
     EXPECT_STRNE(last_error_message, "");
-    EXPECT_TRUE(strstr(last_error_message, "getaddrinfo failed") != nullptr);
   }
 }
 

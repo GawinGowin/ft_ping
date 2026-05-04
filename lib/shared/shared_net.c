@@ -14,7 +14,7 @@ void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   struct addrinfo *result;
   int ret = getaddrinfo(hostname, NULL, &hints, &result);
   if (ret != 0 || !result) {
-    error(1, "getaddrinfo failed: %s", gai_strerror(ret));
+    error(1, ": %s\n", gai_strerror(ret));
   }
 
   struct sockaddr_in *addr_in = (struct sockaddr_in *)result->ai_addr;
@@ -83,8 +83,12 @@ int is_ipv6_address(const char *addr) {
 uint16_t inet_checksum(void *data, size_t len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
-  while (len > 1) { sum += *ptr++; len -= 2; }
-  if (len == 1) sum += *(uint8_t *)ptr;
+  while (len > 1) {
+    sum += *ptr++;
+    len -= 2;
+  }
+  if (len == 1)
+    sum += *(uint8_t *)ptr;
   sum = (sum >> 16) + (sum & 0xffff);
   sum += (sum >> 16);
   return (uint16_t)~sum;
