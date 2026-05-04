@@ -192,11 +192,21 @@ TEST_F(ToolParseArgsTest, PreloadZero) {
   int argc;
   char **argv;
   make_argv({"ft_ping", "-l", "0", "host"}, &argc, &argv);
-  EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
-  EXPECT_EQ(config.preload, 0);
+
+  test_err_jmp_buf_set = 1;
+  if (setjmp(test_err_jmp_buf) == 0) {
+    tool_parse_args(&argc, &argv, &config);
+    FAIL() << "Expected error(1, ...) for -l 0";
+  } else {
+    EXPECT_EQ(last_error_status, 1);
+    EXPECT_STRNE(last_error_message, "");
+  }
 }
 
 TEST_F(ToolParseArgsTest, PreloadMax) {
+  if (getuid() != 0) {
+    GTEST_SKIP() << "root privilege required for -l 65536";
+  }
   int argc;
   char **argv;
   make_argv({"ft_ping", "-l", "65536", "host"}, &argc, &argv);
@@ -260,6 +270,24 @@ TEST_F(ToolParseArgsTest, IdentAboveMax) {
     FAIL() << "Expected error() to be called";
   }
   EXPECT_EQ(last_error_status, 1);
+}
+
+TEST_F(ToolParseArgsTest, PreloadNonRootAboveThree) {
+  if (getuid() == 0) {
+    GTEST_SKIP() << "non-root privilege required for this test";
+  }
+  int argc;
+  char **argv;
+  make_argv({"ft_ping", "-l", "4", "host"}, &argc, &argv);
+
+  test_err_jmp_buf_set = 1;
+  if (setjmp(test_err_jmp_buf) == 0) {
+    tool_parse_args(&argc, &argv, &config);
+    FAIL() << "Expected error(2, ...) for -l 4 as non-root";
+  } else {
+    EXPECT_EQ(last_error_status, 2);
+    EXPECT_STRNE(last_error_message, "");
+  }
 }
 
 TEST_F(ToolParseArgsTest, PreloadAboveMax) {

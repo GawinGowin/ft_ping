@@ -114,11 +114,13 @@ void ping_run(t_ping_session *session) {
   };
   received.iov->iov_base = recv_buf;
 
-  /* preload: 初回に複数パケットを連続送信 */
+  /* preload */
   if (config->preload > 0) {
     for (int i = 0; i < config->preload; i++) {
-      ping_send_one(session, send_packet, packet_size);
+      ping_send_one(session, send_packet, packet_size, 1);
       if (session->is_exiting)
+        break;
+      if (config->count > 0 && session->stats.ntransmitted >= config->count)
         break;
     }
   }
@@ -130,7 +132,7 @@ void ping_run(t_ping_session *session) {
       break;
 
     do {
-      next = ping_send_one(session, send_packet, packet_size);
+      next = ping_send_one(session, send_packet, packet_size, 0);
       next = ping_schedule_exit(config, &(session->stats), &(session->timer), next);
       if (session->is_exiting)
         break;
@@ -191,7 +193,7 @@ int should_use_fast_path_test(const t_ping_config *config, int next) {
 }
 #endif
 
-int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
+int ping_send_one(t_ping_session *session, void *packet, size_t packet_size, int force) {
   t_ping_config *config = &session->config;
   t_ping_net_state *net = &session->net;
   t_ping_timer *timer = &session->timer;
@@ -226,24 +228,29 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
 
   struct timeval now;
   gettimeofday(&now, NULL);
-  /* adaptive モード時: 前回の応答受信時刻を基準にインターバルを計算
-   * （応答が早く返れば早く次を送る、遅ければ次の送信も遅らせる） */
-  const struct timeval *ref =
-      config->opt_adaptive ? &timer->prev_reply_time : &timer->prev_send_time;
-  long delta_ms = (now.tv_sec - ref->tv_sec) * 1000 + (now.tv_usec - ref->tv_usec) / 1000;
-  if (delta_ms < config->interval_ms)
-    return config->interval_ms - (int)delta_ms;
 
-  /* interval_ms == 0 (root + 極小 RTT で update_interval が 0 に丸められたケース) の保護:
-   * 在空中パケットが preload 以上溜まっていて前回送信から MIN_INTERVAL_MS 未経過なら待つ。
-   * iputils の "Case of unlimited flood" (ping_common.c:334-339) 相当で 100pps に制限する。 */
-  if (config->interval_ms == 0) {
-    int in_flight = session->stats.ntransmitted - session->stats.nreceived;
-    int preload = config->preload > 0 ? config->preload : 1;
-    long send_delta_ms = (now.tv_sec - timer->prev_send_time.tv_sec) * 1000 +
-                         (now.tv_usec - timer->prev_send_time.tv_usec) / 1000;
-    if (in_flight >= preload && send_delta_ms < MIN_INTERVAL_MS)
-      return MIN_INTERVAL_MS - (int)send_delta_ms;
+  if (!force) {
+    /* adaptive モード時: 前回の応答受信時刻を基準にインターバルを計算
+     * （応答が早く返れば早く次を送る、遅ければ次の送信も遅らせる） */
+    const struct timeval *ref =
+        config->opt_adaptive ? &timer->prev_reply_time : &timer->prev_send_time;
+    long delta_ms = (now.tv_sec - ref->tv_sec) * 1000 + (now.tv_usec - ref->tv_usec) / 1000;
+    if (delta_ms < config->interval_ms)
+      return config->interval_ms - (int)delta_ms;
+
+    /* interval_ms == 0 (root + 極小 RTT で update_interval が 0
+     * に丸められたケース) の保護: 在空中パケットが preload
+     * 以上溜まっていて前回送信から MIN_INTERVAL_MS 未経過なら待つ。 iputils の
+     * "Case of unlimited flood" (ping_common.c:334-339) 相当で 100pps に制限する。
+     */
+    if (config->interval_ms == 0) {
+      int in_flight = session->stats.ntransmitted - session->stats.nreceived;
+      int preload = config->preload > 0 ? config->preload : 1;
+      long send_delta_ms = (now.tv_sec - timer->prev_send_time.tv_sec) * 1000 +
+                           (now.tv_usec - timer->prev_send_time.tv_usec) / 1000;
+      if (in_flight >= preload && send_delta_ms < MIN_INTERVAL_MS)
+        return MIN_INTERVAL_MS - (int)send_delta_ms;
+    }
   }
 
   timer->prev_send_time = now;
