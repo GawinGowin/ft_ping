@@ -13,7 +13,7 @@ int build_ipheader_raw(void *packet, const t_ipheader_ctx *ctx) {
   set_ip_header(packet, ctx);
   t_ip_icmp *pkt = (t_ip_icmp *)packet;
   unsigned char *payload = (unsigned char *)(pkt + 1);
-  ping_icmp_build_echo(&pkt->icmp, payload, ctx->seq, ctx->datalen, &ctx->ts);
+  ping_icmp_build_echo(&pkt->icmp, payload, ctx->seq, ctx->ident, ctx->datalen, &ctx->ts);
   return 0;
 }
 

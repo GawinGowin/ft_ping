@@ -10,7 +10,7 @@ int build_ipheader_dgram(void *packet, const t_ipheader_ctx *ctx) {
     return -1;
   struct icmphdr *icmp_hdr = (struct icmphdr *)packet;
   unsigned char *payload = (unsigned char *)(icmp_hdr + 1);
-  ping_icmp_build_echo(icmp_hdr, payload, ctx->seq, ctx->datalen, &ctx->ts);
+  ping_icmp_build_echo(icmp_hdr, payload, ctx->seq, ctx->ident, ctx->datalen, &ctx->ts);
   return 0;
 }
 

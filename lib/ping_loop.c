@@ -184,6 +184,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
     gettimeofday(&timer->prev_send_time, NULL);
     t_ipheader_ctx ctx = {
         .seq = seq,
+        .ident = net->ident,
         .datalen = config->datalen,
         .ts = timer->prev_send_time,
         .src = net->from.sin_addr,
@@ -206,6 +207,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
   timer->prev_send_time = now;
   t_ipheader_ctx ctx = {
       .seq = seq,
+      .ident = net->ident,
       .datalen = config->datalen,
       .ts = timer->prev_send_time,
       .src = net->from.sin_addr,

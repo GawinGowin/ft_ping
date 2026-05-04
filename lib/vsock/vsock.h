@@ -16,6 +16,7 @@
 /* IP ヘッダー組み立てコンテキスト */
 typedef struct ipheader_ctx {
   uint16_t seq;
+  uint16_t ident;
   size_t datalen;
   struct timeval ts;
   struct in_addr src;
