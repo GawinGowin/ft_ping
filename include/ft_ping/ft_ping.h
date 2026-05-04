@@ -1,9 +1,15 @@
 #ifndef FT_PING_H
 #define FT_PING_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <errno.h>
 #include <netinet/in.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/time.h>
 
 /* 重複検出システム */

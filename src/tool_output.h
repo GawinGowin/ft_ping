@@ -1,7 +1,7 @@
 #ifndef TOOL_OUTPUT_H
 #define TOOL_OUTPUT_H
 
-#include "ft_ping/ft_ping.h"
+#include "ft_ping.h"
 
 #include <netinet/in.h>
 #include <stddef.h>

@@ -14,7 +14,7 @@ void dns_lookup(const char *hostname, struct sockaddr_in *addr) {
   struct addrinfo *result;
   int ret = getaddrinfo(hostname, NULL, &hints, &result);
   if (ret != 0 || !result) {
-    error(1, "getaddrinfo failed: %s", gai_strerror(ret));
+    error(1, ": %s\n", gai_strerror(ret));
   }
 
   struct sockaddr_in *addr_in = (struct sockaddr_in *)result->ai_addr;
