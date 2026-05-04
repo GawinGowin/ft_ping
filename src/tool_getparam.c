@@ -36,7 +36,7 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
       break;
     case 'l': // TODO: -l <preload>       send <preload> number of packages while waiting replies
       config->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
-      if (getuid() == 0 && config->preload > 3) {
+      if (getuid() != 0 && config->preload > 3) {
         error(2, "cannot set preload to value greater than 3: %ld", config->preload);
       }
       break;
