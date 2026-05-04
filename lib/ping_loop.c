@@ -4,7 +4,20 @@
 #include <linux/errqueue.h>
 
 #define MIN_INTERVAL_MS 10
+#define MINUSERINTERVAL 200 /* 非root の最小インターバル (ms) — iputils 準拠 */
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
+
+/* iputils の update_interval() 相当。adaptive モード時、平均 RTT (EWMA) から
+ * 次回送信までの間隔を再計算する。stats->rtt は triptime_us * 8 のスケール。 */
+static void update_interval(t_ping_config *config, uint64_t rtt) {
+  int est_us = rtt ? (int)(rtt / 8) : config->interval_ms * 1000;
+  int new_ms = (est_us + 500) / 1000;
+  if (new_ms < MIN_INTERVAL_MS)
+    new_ms = MIN_INTERVAL_MS;
+  if (getuid() != 0 && new_ms < MINUSERINTERVAL)
+    new_ms = MINUSERINTERVAL;
+  config->interval_ms = new_ms;
+}
 
 /* MSG_ERRQUEUE でエラーキューから 1 件読み出す。
  * IP_RECVERR を有効にしている場合、宛先到達不能等のエラー応答や
@@ -300,9 +313,12 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
 
       ping_stats_gather(&session->stats, seq, triptime, is_duplicate);
 
-      /* adaptive モード時: 応答受信時刻を次回送信タイミングの基準として記録 */
-      if (session->config.opt_adaptive)
+      /* adaptive モード時: 応答受信時刻を次回送信タイミングの基準として記録し、
+       * EWMA RTT から interval_ms を動的に再計算する (iputils update_interval 相当)。 */
+      if (session->config.opt_adaptive) {
         session->timer.prev_reply_time = recv_time;
+        update_interval(&session->config, session->stats.rtt);
+      }
 
       if (session->reply_cb) {
         int reply_ttl = session->net.socket_state.ops->extract_ttl(received->iov->iov_base, msg);
