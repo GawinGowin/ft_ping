@@ -9,7 +9,7 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
   while ((ch = getopt(*argc, *argv, "h?AhDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
-    case 'A': // TODO: -A                 use adaptive ping
+    case 'A': // -A                 use adaptive ping
       config->opt_adaptive = 1;
       break;
     case 'D': // -D                 print timestamps

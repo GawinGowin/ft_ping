@@ -430,7 +430,7 @@ int ping_init(t_ping_session *session, char *target) {
   session->stats.tmin = LONG_MAX;
   session->stats.timing = ((size_t)config->datalen >= sizeof(struct timeval)) ? 1 : 0;
 
-  if (ping_socket_select(&net->socket_state, config->opt_useident) < 0) {
+  if (ping_socket_select(&net->socket_state, config->opt_useident && config->ident == 0) < 0) {
     error(0, "socktype: SOCK_RAW\n");
     error(0, "socket: Operation not permitted\n");
     error(2, "=> missing cap_net_raw+p capability or setuid?\n");
