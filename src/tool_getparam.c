@@ -27,7 +27,7 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
     case 'c': // -c <count>         stop after <count> replies
       config->count = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
-    case 'e': // TODO: -e <identifier>    define identifier for ping session,
+    case 'e': // -e <identifier>    define identifier for ping session,
       config->ident = (uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error);
       config->opt_useident = 1;
       break;
@@ -37,13 +37,13 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
     case 's': // -s <size>          use <size> as number of data bytes to be sent
       config->datalen = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
-    case 'l': // -l <preload>       send <preload> number of packages while waiting replies
+    case 'l': // TODO: -l <preload>       send <preload> number of packages while waiting replies
       config->preload = parse_long(optarg, "invalid argument", 0, 65536, error);
       if (getuid() == 0 && config->preload > 3) {
         error(2, "cannot set preload to value greater than 3: %ld", config->preload);
       }
       break;
-    case 'w': // OK: -w <deadline>      reply wait <deadline> in seconds
+    case 'w': // -w <deadline>      reply wait <deadline> in seconds
       config->deadline_sec = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
     default:
