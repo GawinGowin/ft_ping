@@ -4,18 +4,17 @@
 #include <linux/errqueue.h>
 
 #define MIN_INTERVAL_MS 10
-#define MINUSERINTERVAL 200 /* 非root の最小インターバル (ms) — iputils 準拠 */
+#define MIN_USER_INTERVAL_MS 2 /* 非root の最小インターバル (ms) — iputils ping.h:67 準拠 */
 #define SCHINT(a) (((a) <= MIN_INTERVAL_MS) ? MIN_INTERVAL_MS : (a))
 
-/* iputils の update_interval() 相当。adaptive モード時、平均 RTT (EWMA) から
- * 次回送信までの間隔を再計算する。stats->rtt は triptime_us * 8 のスケール。 */
+/* iputils の update_interval() (ping_common.c:283) 相当。adaptive モード時、
+ * 平均 RTT (EWMA) から次回送信までの間隔を再計算する。
+ * stats->rtt は triptime_us * 8 のスケール。 */
 static void update_interval(t_ping_config *config, uint64_t rtt) {
   int est_us = rtt ? (int)(rtt / 8) : config->interval_ms * 1000;
   int new_ms = (est_us + 500) / 1000;
-  if (new_ms < MIN_INTERVAL_MS)
-    new_ms = MIN_INTERVAL_MS;
-  if (getuid() != 0 && new_ms < MINUSERINTERVAL)
-    new_ms = MINUSERINTERVAL;
+  if (getuid() != 0 && new_ms < MIN_USER_INTERVAL_MS)
+    new_ms = MIN_USER_INTERVAL_MS;
   config->interval_ms = new_ms;
 }
 
