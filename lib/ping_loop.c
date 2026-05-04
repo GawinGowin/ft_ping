@@ -191,6 +191,8 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
 
   if (timer->prev_send_time.tv_sec == 0 && timer->prev_send_time.tv_usec == 0) {
     gettimeofday(&timer->prev_send_time, NULL);
+    /* adaptive: 初回応答受信前は送信時刻を参照点として使う */
+    timer->prev_reply_time = timer->prev_send_time;
     t_ipheader_ctx ctx = {
         .seq = seq,
         .ident = net->ident,
@@ -210,8 +212,11 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
 
   struct timeval now;
   gettimeofday(&now, NULL);
-  long delta_ms = (now.tv_sec - timer->prev_send_time.tv_sec) * 1000 +
-                  (now.tv_usec - timer->prev_send_time.tv_usec) / 1000;
+  /* adaptive モード時: 前回の応答受信時刻を基準にインターバルを計算
+   * （応答が早く返れば早く次を送る、遅ければ次の送信も遅らせる） */
+  const struct timeval *ref =
+      config->opt_adaptive ? &timer->prev_reply_time : &timer->prev_send_time;
+  long delta_ms = (now.tv_sec - ref->tv_sec) * 1000 + (now.tv_usec - ref->tv_usec) / 1000;
   if (delta_ms < config->interval_ms)
     return config->interval_ms - (int)delta_ms;
 
@@ -294,6 +299,10 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
       }
 
       ping_stats_gather(&session->stats, seq, triptime, is_duplicate);
+
+      /* adaptive モード時: 応答受信時刻を次回送信タイミングの基準として記録 */
+      if (session->config.opt_adaptive)
+        session->timer.prev_reply_time = recv_time;
 
       if (session->reply_cb) {
         int reply_ttl = session->net.socket_state.ops->extract_ttl(received->iov->iov_base, msg);
