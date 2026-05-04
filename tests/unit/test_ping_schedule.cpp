@@ -32,18 +32,20 @@ TEST_F(PingScheduleExitTest, NotReachedCountReturnsNextUnchanged) {
   EXPECT_EQ(timer.schedule_waittime, 0u);
 }
 
-/* deadline_sec が設定されていれば、count 到達時もスケジューリングしない */
-TEST_F(PingScheduleExitTest, DeadlineSetSuppressesScheduling) {
+/* deadline_sec が設定されていても、count 到達時は通常通りスケジューリングする
+ * （iputils 準拠: -c と -w 併用時はどちらか早く成立した方で終了）。 */
+TEST_F(PingScheduleExitTest, DeadlineDoesNotSuppressSchedulingOnCountReached) {
   config.count = 3;
   config.deadline_sec = 10;
+  config.interval_ms = 1000;
   stats.ntransmitted = 3;
   stats.nreceived = 1;
-  stats.tmax = 100;
+  stats.tmax = 5000000; /* 5秒 */
 
-  int result = ping_schedule_exit(&config, &stats, &timer, 5);
+  ping_schedule_exit(&config, &stats, &timer, 0);
 
-  EXPECT_EQ(result, 5);
-  EXPECT_EQ(timer.schedule_waittime, 0u);
+  /* count 到達 + 受信ありなので 2 * tmax がスケジュールされる */
+  EXPECT_EQ(timer.schedule_waittime, 2u * 5000000u);
 }
 
 /* count 到達 + 受信あり: tmax が大きい場合は schedule_waittime = 2 * tmax */
@@ -83,6 +85,86 @@ TEST_F(PingScheduleExitTest, ReachedCountWithoutReplyUsesLingerTime) {
   ping_schedule_exit(&config, &stats, &timer, 0);
 
   EXPECT_EQ(timer.schedule_waittime, 7u * 1000000u);
+}
+
+/* count == 0（無限モード）: ntransmitted がいくらでもスケジュールしない */
+TEST_F(PingScheduleExitTest, CountZeroNeverSchedules) {
+  config.count = 0;
+  stats.ntransmitted = 1000000;
+  stats.nreceived = 1;
+  stats.tmax = 5000000;
+
+  int result = ping_schedule_exit(&config, &stats, &timer, 42);
+
+  EXPECT_EQ(result, 42);
+  EXPECT_EQ(timer.schedule_waittime, 0u);
+}
+
+/* 境界値: ntransmitted == count - 1 ではスケジュールしない */
+TEST_F(PingScheduleExitTest, JustBelowCountDoesNotSchedule) {
+  config.count = 3;
+  config.interval_ms = 1000;
+  stats.ntransmitted = 2; /* count - 1 */
+  stats.nreceived = 1;
+  stats.tmax = 5000000;
+
+  int result = ping_schedule_exit(&config, &stats, &timer, 11);
+
+  EXPECT_EQ(result, 11);
+  EXPECT_EQ(timer.schedule_waittime, 0u);
+}
+
+/* 境界値: ntransmitted == count ちょうどでスケジュールが走る */
+TEST_F(PingScheduleExitTest, ExactCountTriggersScheduling) {
+  config.count = 3;
+  config.interval_ms = 1000;
+  stats.ntransmitted = 3; /* == count */
+  stats.nreceived = 1;
+  stats.tmax = 5000000;
+
+  ping_schedule_exit(&config, &stats, &timer, 0);
+
+  EXPECT_NE(timer.schedule_waittime, 0u);
+}
+
+/* next が schedule_waittime/1000 より大きいときは next がそのまま返る */
+TEST_F(PingScheduleExitTest, LargerNextPreservedAsReturn) {
+  config.count = 3;
+  config.interval_ms = 1000;
+  stats.ntransmitted = 3;
+  stats.nreceived = 1;
+  stats.tmax = 5000000; /* schedule_waittime = 10_000_000 us → 10_000 ms */
+
+  int next = 99999; /* > 10000 */
+  int result = ping_schedule_exit(&config, &stats, &timer, next);
+
+  EXPECT_EQ(result, next);
+}
+
+/* next が schedule_waittime/1000 より小さいときは引き上げられる */
+TEST_F(PingScheduleExitTest, SmallerNextRaisedToWaittime) {
+  config.count = 3;
+  config.interval_ms = 1000;
+  stats.ntransmitted = 3;
+  stats.nreceived = 1;
+  stats.tmax = 5000000; /* schedule_waittime = 10_000_000 us → 10_000 ms */
+
+  int result = ping_schedule_exit(&config, &stats, &timer, 100);
+
+  EXPECT_EQ(result, 10000);
+}
+
+/* next が負のときも schedule_waittime/1000 に置き換えられる */
+TEST_F(PingScheduleExitTest, NegativeNextRaisedToWaittime) {
+  config.count = 3;
+  config.interval_ms = 1000;
+  stats.ntransmitted = 3;
+  stats.nreceived = 1;
+  stats.tmax = 5000000;
+
+  int result = ping_schedule_exit(&config, &stats, &timer, -1);
+
+  EXPECT_EQ(result, 10000);
 }
 
 /* 二重呼び出し: 1回目で設定された schedule_waittime は2回目で変更されない */

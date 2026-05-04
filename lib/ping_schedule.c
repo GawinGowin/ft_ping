@@ -6,7 +6,7 @@ static int ping_schedule_exit_internal(
 
 int ping_schedule_exit(
     t_ping_config *config, t_ping_stats_internal *ctx, t_ping_timer *timer, int next) {
-  if (config->count && ctx->ntransmitted >= config->count && !config->deadline_sec) {
+  if (config->count && ctx->ntransmitted >= config->count) {
     next = ping_schedule_exit_internal(config, ctx, timer, next);
   }
   return next;

@@ -62,6 +62,21 @@ void ping_run(t_ping_session *session) {
   t_ping_config *config = &session->config;
   t_socket_st *sock_st = &session->net.socket_state;
 
+  /* 検証方法
+  ```
+  # count + deadline (deadline 先) — 2秒で終了
+  time sudo ./ft_ping -c 100 -w 2 127.0.0.1
+
+  # count + deadline (count 先) — 約3秒で終了
+  time sudo ./ft_ping -c 3 -w 60 127.0.0.1
+  ```  
+  */
+  if (config->deadline_sec > 0) {
+    struct itimerval it = {0};
+    it.it_value.tv_sec = config->deadline_sec;
+    setitimer(ITIMER_REAL, &it, NULL);
+  }
+
   size_t packet_size = sock_st->ops->packet_size(config->datalen);
 
   void *send_packet = malloc(packet_size);
