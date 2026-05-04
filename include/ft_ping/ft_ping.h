@@ -41,7 +41,6 @@ typedef struct ping_config {
   unsigned int opt_useident : 1;
   unsigned int opt_adaptive : 1;
   unsigned int opt_flood_poll : 1;
-  unsigned int opt_verbose : 1;
   unsigned int opt_ptimeofday : 1;
 } t_ping_config;
 

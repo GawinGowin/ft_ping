@@ -10,7 +10,7 @@
 void tool_output_header(const t_ping_config *config, struct in_addr addr, size_t packet_size);
 
 /* 1 応答ライン。ftping_set_reply_handler に登録するコールバック。
- * ctx は const t_ping_config * を渡す（-D / -v 判定のため）。 */
+ * ctx は const t_ping_config * を渡す（-D 判定のため）。 */
 void tool_output_reply(const t_ftping_reply *reply, void *ctx);
 
 /* 終了時の統計出力 */

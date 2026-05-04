@@ -47,7 +47,6 @@ protected:
   void SetUp() override {
     config.hostname = "localhost";
     config.datalen = 56;
-    config.opt_verbose = 0;
     config.opt_ptimeofday = 0;
 
     inet_aton("127.0.0.1", &reply.from_addr);
@@ -71,18 +70,10 @@ TEST_F(ReplyTest, NoTimingOmitsTimeField) {
   EXPECT_EQ(out, "64 bytes from 127.0.0.1: icmp_seq=1\n");
 }
 
-TEST_F(ReplyTest, DuplicateWithVerbosePrintsDup) {
-  config.opt_verbose = 1;
+TEST_F(ReplyTest, DuplicatePrintsDup) {
   reply.is_duplicate = 1;
   std::string out = capture([&]() { tool_output_reply(&reply, &config); });
   EXPECT_NE(out.find("(DUP!)"), std::string::npos);
-}
-
-TEST_F(ReplyTest, DuplicateWithoutVerboseSilent) {
-  config.opt_verbose = 0;
-  reply.is_duplicate = 1;
-  std::string out = capture([&]() { tool_output_reply(&reply, &config); });
-  EXPECT_EQ(out, "");
 }
 
 TEST_F(ReplyTest, PtimeofdayPrefix) {

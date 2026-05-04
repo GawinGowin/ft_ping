@@ -280,16 +280,6 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
     int is_ours = session->net.socket_state.socktype == SOCK_DGRAM ||
                   (icmp && ntohs(icmp->un.echo.id) == session->net.ident);
 
-    /* verbose モード: ECHOREPLY 以外の ICMP も表示する。
-     * iputils pr_icmph() (ping_common.c) と同じく、type/code を可読形式で出す。 */
-    if (session->config.opt_verbose && icmp && icmp->type != ICMP_ECHOREPLY &&
-        icmp->type != ICMP_ECHO) {
-      char addr_buf[INET_ADDRSTRLEN] = "?";
-      if (from)
-        inet_ntop(AF_INET, &from->sin_addr, addr_buf, sizeof(addr_buf));
-      fprintf(stderr, "From %s: icmp_seq=? Type=%d Code=%d\n", addr_buf, icmp->type, icmp->code);
-    }
-
     if (icmp && is_ours && icmp->type == ICMP_ECHOREPLY) {
       uint16_t seq = ntohs(icmp->un.echo.sequence);
 
