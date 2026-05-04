@@ -226,6 +226,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .claude.local.json
+
 CLAUDE.local.md
+GEMINI.local.md
 
 mise.*.toml
