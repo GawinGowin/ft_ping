@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -67,6 +68,11 @@ def netns() -> str:
     res = _run(["ip", "netns", "exec", NETNS_NAME, "ip", "link", "set", "lo", "up"])
     assert res.returncode == 0, f"lo up failed: {res.stderr}"
 
+    # Without an explicit address, source-address selection for 127.0.0.0/8
+    # is not guaranteed in a fresh netns — assign it so probes/pings work.
+    _run(["ip", "netns", "exec", NETNS_NAME,
+          "ip", "addr", "add", "127.0.0.1/8", "dev", "lo"])
+
     try:
         yield NETNS_NAME
     finally:
@@ -94,21 +100,93 @@ def capture_pcap(netns: str):
 
         with capture_pcap(pcap_path):
             run_in_netns([...])
+
+    Blocks until we confirm that packets are actually being captured by
+    sending a UDP probe and waiting for the pcap file to grow.
+    This eliminates the race where the first packet escapes capture.
     """
     @contextmanager
     def _capture(pcap_path: Path, iface: str = "lo", bpf: str = "icmp",
-                 settle: float = 0.3, drain: float = 0.3):
+                 ready_timeout: float = 5.0, drain: float = 0.3):
         _require_tool("tcpdump")
+
+        # Ensure we capture the UDP probe even if the user only wants ICMP.
+        # We use port 9 (Discard) to avoid side effects.
+        actual_bpf = f"({bpf}) or (udp and port 9)" if bpf else "udp and port 9"
+
+        # -U (packet-buffered) is essential for immediate file growth.
         proc = subprocess.Popen(
             ["ip", "netns", "exec", netns,
-             "tcpdump", "-i", iface, "-w", str(pcap_path), "-U", "-q", bpf],
+             "tcpdump", "-i", iface, "-w", str(pcap_path), "-U", actual_bpf],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
-        time.sleep(settle)
+
+        # Drain stderr in a thread so the pipe buffer can never fill and
+        # block tcpdump. We don't gate readiness on stderr content (which
+        # can be buffered); we use the pcap-grew probe as the real signal.
+        stderr_buf: list[bytes] = []
+
+        def _drain_stderr():
+            assert proc.stderr is not None
+            for chunk in iter(lambda: proc.stderr.read(4096), b""):
+                stderr_buf.append(chunk)
+
+        reader = threading.Thread(target=_drain_stderr, daemon=True)
+        reader.start()
+
+        def _stderr_text() -> str:
+            return b"".join(stderr_buf).decode(errors="replace")
+
+        # Probe and wait for file growth.
+        # tcpdump writes a 24-byte pcap header immediately on open; we
+        # consider capture ready once the file is bigger than that, which
+        # only happens after a packet has actually been written.
+        start_time = time.time()
+        probe_cmd = [
+            "ip", "netns", "exec", netns,
+            "python3", "-c",
+            "import socket; "
+            "s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); "
+            "s.sendto(b'probe', ('127.0.0.1', 9))"
+        ]
+
+        def get_pcap_size() -> int:
+            try:
+                return pcap_path.stat().st_size
+            except FileNotFoundError:
+                return 0
+
+        ready = False
+        while time.time() - start_time < ready_timeout:
+            # Bail out fast if tcpdump exited (BPF parse error, EPERM, ...).
+            if proc.poll() is not None:
+                raise RuntimeError(
+                    f"tcpdump exited early (rc={proc.returncode}).\n"
+                    f"stderr:\n{_stderr_text()}"
+                )
+            _run(probe_cmd)
+            time.sleep(0.1)
+            if get_pcap_size() > 24:
+                ready = True
+                break
+
+        if not ready:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            raise RuntimeError(
+                f"pcap file did not grow after UDP probe within {ready_timeout}s. "
+                f"Current size: {get_pcap_size()}\n"
+                f"tcpdump stderr:\n{_stderr_text()}"
+            )
+
         try:
             yield pcap_path
         finally:
+            # Let any in-flight packets reach the pcap before we tear down.
             time.sleep(drain)
             proc.terminate()
             try:
@@ -116,5 +194,6 @@ def capture_pcap(netns: str):
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait(timeout=2)
+            reader.join(timeout=1)
 
     return _capture
