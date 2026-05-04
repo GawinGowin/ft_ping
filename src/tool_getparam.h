@@ -11,10 +11,11 @@
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "shared/shared_error.h"
 #include "shared/shared_parse.h"
 
-int tool_parse_args(int *argc, char ***argv, t_ping_config *config);
+void tool_parse_args(int *argc, char ***argv, t_ping_config *config);
 
 #endif /* TOOL_GETPARAM_H */
