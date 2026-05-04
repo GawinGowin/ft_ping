@@ -54,7 +54,7 @@ typedef struct ping_receive {
 } t_ping_receive;
 
 void ping_run(t_ping_session *session);
-int ping_send_one(t_ping_session *session, void *packet, size_t packet_size);
+int ping_send_one(t_ping_session *session, void *packet, size_t packet_size, int force);
 int ping_init(t_ping_session *session, char *target);
 int ping_receive_replies(t_ping_session *session, t_ping_receive *received);
 

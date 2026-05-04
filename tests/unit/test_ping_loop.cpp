@@ -122,7 +122,7 @@ TEST_F(PingSendOneTest, IntervalZeroReturnsNonNegative) {
   if (!can_create_socket())
     GTEST_SKIP() << "socket not available";
   session.config.interval_ms = 0;
-  int ret = ping_send_one(&session, packet, packet_size);
+  int ret = ping_send_one(&session, packet, packet_size, 0);
   EXPECT_GE(ret, 0);
 }
 
@@ -131,7 +131,7 @@ TEST_F(PingSendOneTest, IntervalThousandReturnsAtLeastNineHundred) {
   if (!can_create_socket())
     GTEST_SKIP() << "socket not available";
   session.config.interval_ms = 1000;
-  int ret = ping_send_one(&session, packet, packet_size);
+  int ret = ping_send_one(&session, packet, packet_size, 0);
   EXPECT_GE(ret, 900);
 }
 
@@ -141,7 +141,7 @@ TEST_F(PingSendOneTest, NtransmittedIncrements) {
     GTEST_SKIP() << "socket not available";
   session.config.interval_ms = 1000;
   EXPECT_EQ(session.stats.ntransmitted, 0);
-  ping_send_one(&session, packet, packet_size);
+  ping_send_one(&session, packet, packet_size, 0);
   EXPECT_EQ(session.stats.ntransmitted, 1);
 }
 
@@ -153,7 +153,7 @@ TEST_F(PingSendOneTest, CountLimitReachedDoesNotSend) {
   session.config.count = 1;
   session.config.interval_ms = 1000;
   session.stats.ntransmitted = 1;
-  int ret = ping_send_one(&session, packet, packet_size);
+  int ret = ping_send_one(&session, packet, packet_size, 0);
   EXPECT_GT(ret, 0);
   EXPECT_EQ(session.stats.ntransmitted, 1);
 }
@@ -167,7 +167,7 @@ TEST_F(PingSendOneTest, InfiniteCountDoesNotStop) {
   session.stats.ntransmitted = 999;
   /* timeval をリセットして初回送信扱いにする */
   memset(&session.timer.prev_send_time, 0, sizeof(session.timer.prev_send_time));
-  int ret = ping_send_one(&session, packet, packet_size);
+  int ret = ping_send_one(&session, packet, packet_size, 0);
   EXPECT_GT(ret, 0);
 }
 
@@ -182,7 +182,7 @@ TEST_F(PingSendOneTest, ClosedFdReschedulesWithoutIncrement) {
   close(session.net.socket_state.fd);
   session.net.socket_state.fd = -1;
   int before = session.stats.ntransmitted;
-  int ret = ping_send_one(&session, packet, packet_size);
+  int ret = ping_send_one(&session, packet, packet_size, 0);
   EXPECT_GT(ret, 0);
   EXPECT_EQ(session.stats.ntransmitted, before);
 }
@@ -363,11 +363,12 @@ TEST_F(PingSendOneMockTest, BuildIpHeaderIsInvoked) {
 
   /* fd=999 で send_packet は失敗するので戻り値は問わない。
    * build_ipheader が呼ばれたことだけ検証する。 */
-  ping_send_one(&session, packet_buf.data(), packet_buf.size());
+  ping_send_one(&session, packet_buf.data(), packet_buf.size(), 0);
 
   EXPECT_EQ(g_mock_vsock_state.build_ipheader_calls, 1);
   EXPECT_EQ(g_mock_vsock_state.last_seq, 0u);
-  EXPECT_EQ(g_mock_vsock_state.last_datalen, static_cast<size_t>(session.config.datalen));
+  EXPECT_EQ(g_mock_vsock_state.last_datalen,
+            static_cast<size_t>(session.config.datalen));
 }
 
 /* F-2: count に達していたら build_ipheader は呼ばれない */
@@ -375,7 +376,7 @@ TEST_F(PingSendOneMockTest, BuildIpHeaderSkippedWhenCountReached) {
   session.config.count = 3;
   session.stats.ntransmitted = 3;
 
-  ping_send_one(&session, packet_buf.data(), packet_buf.size());
+  ping_send_one(&session, packet_buf.data(), packet_buf.size(), 0);
 
   EXPECT_EQ(g_mock_vsock_state.build_ipheader_calls, 0);
 }
