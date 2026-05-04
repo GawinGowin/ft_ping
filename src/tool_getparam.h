@@ -8,14 +8,14 @@
 #include "ft_ping.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "shared/shared_error.h"
 #include "shared/shared_parse.h"
 
-void tool_parse_args(int *argc, char ***argv, t_ping_config *config);
+int tool_parse_args(int *argc, char ***argv, t_ping_config *config);
 
 #endif /* TOOL_GETPARAM_H */

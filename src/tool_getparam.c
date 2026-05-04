@@ -5,7 +5,7 @@
 
 static void show_usage(void);
 
-void tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
+int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
   while ((ch = getopt(*argc, *argv, "h?AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
@@ -44,13 +44,12 @@ void tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
       break;
     default:
       show_usage();
-      exit(2);
-      break;
+      return 2;
     }
   }
   *argc -= optind;
   *argv += optind;
-  return;
+  return 0;
 }
 
 static void show_usage(void) {

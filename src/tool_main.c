@@ -8,7 +8,10 @@ int main(int argc, char **argv) {
   t_ping_config config;
   ftping_config_init(&config);
 
-  tool_parse_args(&argc, &argv, &config);
+  int err = 0;
+  if ((err = tool_parse_args(&argc, &argv, &config))) {
+    exit(err);
+  }
   if (argc < 1) {
     error(1, "usage error: Destination address required\n");
   }
