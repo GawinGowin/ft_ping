@@ -145,15 +145,17 @@ TEST_F(PingSendOneTest, NtransmittedIncrements) {
   EXPECT_EQ(session.stats.ntransmitted, 1);
 }
 
-/* B-4: count=1 かつ ntransmitted=1 のとき、戻り値が 0（送信しない） */
-TEST_F(PingSendOneTest, CountLimitReachedReturnsZero) {
+/* B-4: count=1 かつ ntransmitted=1 のとき、送信せず正の待ち時間を返す
+ * (iputils ping_common.c:320-321 準拠。0 を返すと do-while (next<=0) が無限ループする) */
+TEST_F(PingSendOneTest, CountLimitReachedDoesNotSend) {
   if (!can_create_socket())
     GTEST_SKIP() << "socket not available";
   session.config.count = 1;
   session.config.interval_ms = 1000;
   session.stats.ntransmitted = 1;
   int ret = ping_send_one(&session, packet, packet_size);
-  EXPECT_EQ(ret, 0);
+  EXPECT_GT(ret, 0);
+  EXPECT_EQ(session.stats.ntransmitted, 1);
 }
 
 /* B-5: count=0（無限）では count による停止が発生しない */
