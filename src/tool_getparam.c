@@ -1,11 +1,13 @@
 
 #include "tool_getparam.h"
 
-// tool_show_usage()
+#include <stdlib.h>
 
-int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
+static void show_usage(void);
+
+void tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "h?AhvDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
     case 'A':
       config->opt_adaptive = 1;
@@ -41,10 +43,36 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
       config->deadline_sec = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
     default:
-      return (2);
+      show_usage();
+      exit(2);
+      break;
     }
   }
   *argc -= optind;
   *argv += optind;
-  return (0);
+  return;
+}
+
+static void show_usage(void) {
+  char usage_msg[] = {
+      "\nUsage:\n  %s [options] <destination>\n\n"
+      "Options:\n"
+      "  <destination>      dns name or ip address\n"
+      "  -A                 use adaptive ping\n"
+      "  -c <count>         stop after <count> replies\n"
+      "  -D                 print timestamps\n"
+      "  -e <identifier>    define identifier for ping session, default is random for\n"
+      "                     SOCK_RAW and kernel defined for SOCK_DGRAM\n"
+      "                     Imply using SOCK_RAW (for IPv4 only for identifier 0)\n"
+      "  -h                 display this help and exit\n"
+      "  -l <preload>       send <preload> number of packages while waiting replies\n"
+      "  -Q <tclass>        use quality of service <tclass> bits\n"
+      "  -s <size>          use <size> as number of data bytes to be sent\n"
+      "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
+      "  -t <ttl>           define time to live\n"
+      "  -v                 verbose output\n"
+      "  -w <deadline>      reply wait <deadline> in seconds\n"
+      "\n"
+      "For more details see https://github.com/GawinGowin/ft_ping.git\n"};
+  fprintf(stderr, usage_msg, program_invocation_short_name);
 }
