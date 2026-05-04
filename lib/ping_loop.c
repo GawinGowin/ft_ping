@@ -362,11 +362,13 @@ static void set_socket_buff(int fd, t_ping_config *config) {
     error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
 
   int hold;
-  if ((int)send > INT_MAX / config->preload) {
+  /* preload=0 (未指定時) はバッファ計算上 1 として扱う */
+  int eff_preload = config->preload > 0 ? config->preload : 1;
+  if ((int)send > INT_MAX / eff_preload) {
     error(0, "WARNING: buffer size overflow, reduce packet size or preload\n");
     hold = INT_MAX;
   } else {
-    hold = (int)send * config->preload;
+    hold = (int)send * eff_preload;
   }
 
   int rcvbuf = hold;
