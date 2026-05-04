@@ -38,6 +38,7 @@ typedef struct ping_config {
   uint16_t ident;
   int sndbuf;
   int preload;
+  unsigned int opt_useident : 1;
   unsigned int opt_adaptive : 1;
   unsigned int opt_flood_poll : 1;
   unsigned int opt_verbose : 1;

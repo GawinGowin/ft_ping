@@ -203,7 +203,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
         .src = net->from.sin_addr,
         .dst = net->whereto.sin_addr,
     };
-    net->socket_state.ops->build_ipheader(packet, &ctx);
+    net->socket_state.ops->build_ipicmp(packet, &ctx);
     if (send_packet(packet, packet_size, net->socket_state.fd, &net->whereto) < 0)
       return SCHINT(config->interval_ms);
     session->stats.ntransmitted++;
@@ -231,7 +231,7 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
       .src = net->from.sin_addr,
       .dst = net->whereto.sin_addr,
   };
-  net->socket_state.ops->build_ipheader(packet, &ctx);
+  net->socket_state.ops->build_ipicmp(packet, &ctx);
   if (send_packet(packet, packet_size, net->socket_state.fd, &net->whereto) < 0)
     return -1;
   session->stats.ntransmitted++;
@@ -278,7 +278,7 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
      * 確認しないと他人の応答を自分の統計に計上してしまう。
      * iputils is_ours() (ping_common.c:1016) と同じ判定。 */
     int is_ours = session->net.socket_state.socktype == SOCK_DGRAM ||
-                  ntohs(icmp ? icmp->un.echo.id : 0) == session->net.ident;
+                  (icmp && ntohs(icmp->un.echo.id) == session->net.ident);
 
     /* verbose モード: ECHOREPLY 以外の ICMP も表示する。
      * iputils pr_icmph() (ping_common.c) と同じく、type/code を可読形式で出す。 */
@@ -411,12 +411,19 @@ int ping_init(t_ping_session *session, char *target) {
   session->stats.tmin = LONG_MAX;
   session->stats.timing = ((size_t)config->datalen >= sizeof(struct timeval)) ? 1 : 0;
 
-  net->ident = config->ident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
-
-  if (ping_socket_select(&net->socket_state) < 0)
-    error(1, "Failed to create socket: %s\n", strerror(errno));
+  if (ping_socket_select(&net->socket_state, config->opt_useident) < 0) {
+    error(0, "socktype: SOCK_RAW\n");
+    error(0, "socket: Operation not permitted\n");
+    error(2, "=> missing cap_net_raw+p capability or setuid?\n");
+  }
 
   int fd = net->socket_state.fd;
+
+  net->ident = config->opt_useident ? config->ident : (uint16_t)(getpid() & 0xFFFF);
+  int err = net->socket_state.ops->set_ident(fd, net->ident);
+  if (err) {
+    error(err, "bind failed: %s\n", strerror(errno));
+  }
 
   if (setsockopt(fd, IPPROTO_IP, IP_TTL, &config->ttl, sizeof(config->ttl)) < 0)
     error(1, "setsockopt IP_TTL failed: %s\n", strerror(errno));

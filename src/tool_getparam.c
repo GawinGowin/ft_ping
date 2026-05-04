@@ -28,7 +28,8 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
       config->count = parse_long(optarg, "invalid argument", 0, LONG_MAX, error);
       break;
     case 'e': // TODO: -e <identifier>    define identifier for ping session,
-      config->ident = htons((uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error));
+      config->ident = (uint16_t)parse_long(optarg, "invalid argument", 0, 0xFFFF, error);
+      config->opt_useident = 1;
       break;
     case 'S': // -S <size>          use <size> as SO_SNDBUF socket option value
       config->sndbuf = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
