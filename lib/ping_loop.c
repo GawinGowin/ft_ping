@@ -342,6 +342,7 @@ static void set_socket_buff(int fd, t_ping_config *config) {
     error(1, "Buffer size too large: %zu\n", send);
 
   int sndbuf = config->sndbuf ? config->sndbuf : (int)send;
+  // -Sオプション: 検証方法: `sudo strace -e setsockopt ./ft_ping -S 4096 <destination>`
   if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf)) < 0)
     error(1, "setsockopt SO_SNDBUF failed: %s\n", strerror(errno));
 
