@@ -196,8 +196,10 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
   t_ping_net_state *net = &session->net;
   t_ping_timer *timer = &session->timer;
 
+  /* count 達成後は十分大きい値を返してメインループの do-while を抜けさせる
+   * (iputils ping_common.c:320-321 と同じ意図)。0 を返すと無限ループになる。 */
   if (config->count > 0 && session->stats.ntransmitted >= config->count)
-    return 0;
+    return 1000;
 
   uint16_t seq = (uint16_t)(session->stats.ntransmitted % UINT16_MAX);
 
@@ -231,6 +233,18 @@ int ping_send_one(t_ping_session *session, void *packet, size_t packet_size) {
   long delta_ms = (now.tv_sec - ref->tv_sec) * 1000 + (now.tv_usec - ref->tv_usec) / 1000;
   if (delta_ms < config->interval_ms)
     return config->interval_ms - (int)delta_ms;
+
+  /* interval_ms == 0 (root + 極小 RTT で update_interval が 0 に丸められたケース) の保護:
+   * 在空中パケットが preload 以上溜まっていて前回送信から MIN_INTERVAL_MS 未経過なら待つ。
+   * iputils の "Case of unlimited flood" (ping_common.c:334-339) 相当で 100pps に制限する。 */
+  if (config->interval_ms == 0) {
+    int in_flight = session->stats.ntransmitted - session->stats.nreceived;
+    int preload = config->preload > 0 ? config->preload : 1;
+    long send_delta_ms = (now.tv_sec - timer->prev_send_time.tv_sec) * 1000 +
+                         (now.tv_usec - timer->prev_send_time.tv_usec) / 1000;
+    if (in_flight >= preload && send_delta_ms < MIN_INTERVAL_MS)
+      return MIN_INTERVAL_MS - (int)send_delta_ms;
+  }
 
   timer->prev_send_time = now;
   t_ipheader_ctx ctx = {
