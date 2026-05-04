@@ -17,10 +17,6 @@ void tool_output_reply(const t_ftping_reply *reply, void *ctx) {
     return;
   const t_ping_config *config = (const t_ping_config *)ctx;
 
-  /* 重複かつ非 verbose なら表示しない（cmd/ft_ping parse_reply の条件と同じ） */
-  if (reply->is_duplicate && (!config || !config->opt_verbose))
-    return;
-
   if (config && config->opt_ptimeofday) {
     printf(
         "[%lu.%06lu] ", (unsigned long)reply->recv_time.tv_sec,

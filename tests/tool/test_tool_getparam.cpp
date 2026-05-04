@@ -53,14 +53,6 @@ TEST_F(ToolParseArgsTest, AdaptiveFlag) {
   EXPECT_EQ(config.opt_adaptive, 1u);
 }
 
-TEST_F(ToolParseArgsTest, VerboseFlag) {
-  int argc;
-  char **argv;
-  make_argv({"ft_ping", "-v", "host"}, &argc, &argv);
-  EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
-  EXPECT_EQ(config.opt_verbose, 1u);
-}
-
 TEST_F(ToolParseArgsTest, PrintTimestampFlag) {
   int argc;
   char **argv;
@@ -315,7 +307,7 @@ TEST_F(ToolParseArgsTest, HelpFlagReturns2) {
 TEST_F(ToolParseArgsTest, ArgvAdjustedToRemainingArgs) {
   int argc;
   char **argv;
-  make_argv({"ft_ping", "-v", "-c", "3", "host"}, &argc, &argv);
+  make_argv({"ft_ping", "-c", "3", "host"}, &argc, &argv);
   EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
   EXPECT_EQ(argc, 1);
   EXPECT_STREQ(argv[0], "host");
@@ -333,9 +325,8 @@ TEST_F(ToolParseArgsTest, NoOptionsLeavesHostname) {
 TEST_F(ToolParseArgsTest, MultipleOptionsAndHostname) {
   int argc;
   char **argv;
-  make_argv({"ft_ping", "-v", "-A", "-D", "-t", "128", "-c", "10", "8.8.8.8"}, &argc, &argv);
+  make_argv({"ft_ping", "-A", "-D", "-t", "128", "-c", "10", "8.8.8.8"}, &argc, &argv);
   EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
-  EXPECT_EQ(config.opt_verbose, 1u);
   EXPECT_EQ(config.opt_adaptive, 1u);
   EXPECT_EQ(config.opt_ptimeofday, 1u);
   EXPECT_EQ(config.ttl, 128);
@@ -349,7 +340,7 @@ TEST_F(ToolParseArgsTest, MultipleOptionsAndHostname) {
 TEST_F(ToolParseArgsTest, UnrelatedFieldsUnchanged) {
   int argc;
   char **argv;
-  make_argv({"ft_ping", "-v", "host"}, &argc, &argv);
+  make_argv({"ft_ping", "host"}, &argc, &argv);
   EXPECT_EQ(tool_parse_args(&argc, &argv, &config), 0);
   /* -v 以外はデフォルト値のまま */
   EXPECT_EQ(config.datalen, 56);
