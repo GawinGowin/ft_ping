@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <arpa/inet.h>
+#include <gtest/gtest.h>
 #include <netinet/ip_icmp.h>
 #include <string.h>
 #include <sys/time.h>

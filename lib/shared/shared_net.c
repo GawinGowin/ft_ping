@@ -83,8 +83,12 @@ int is_ipv6_address(const char *addr) {
 uint16_t inet_checksum(void *data, size_t len) {
   uint32_t sum = 0;
   uint16_t *ptr = data;
-  while (len > 1) { sum += *ptr++; len -= 2; }
-  if (len == 1) sum += *(uint8_t *)ptr;
+  while (len > 1) {
+    sum += *ptr++;
+    len -= 2;
+  }
+  if (len == 1)
+    sum += *(uint8_t *)ptr;
   sum = (sum >> 16) + (sum & 0xffff);
   sum += (sum >> 16);
   return (uint16_t)~sum;
