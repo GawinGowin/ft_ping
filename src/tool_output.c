@@ -2,14 +2,20 @@
 
 #include <arpa/inet.h>
 #include <limits.h>
+#include <netinet/ip_icmp.h>
 #include <stdio.h>
 
-void tool_output_header(const t_ping_config *config, struct in_addr addr, size_t packet_size) {
+void tool_output_header(const t_ping_config *config, struct in_addr addr, uint16_t ident) {
   if (!config)
     return;
   printf(
-      "PING %s (%s) %d(%zu) bytes of data.\n", config->hostname ? config->hostname : "",
-      inet_ntoa(addr), config->datalen, packet_size);
+      "PING %s (%s): %d data bytes", config->hostname ? config->hostname : "", inet_ntoa(addr),
+      config->datalen);
+  if (config->opt_verbose) {
+    printf(", id 0x%x = %d\n", (int)ident, (int)ident);
+  } else {
+    printf("\n");
+  }
 }
 
 void tool_output_reply(const t_ftping_reply *reply, void *ctx) {
@@ -44,9 +50,9 @@ void tool_output_finish(const t_ftping_summary *s) {
   if (!s)
     return;
 
-  printf("\n--- %s ping statistics ---\n", s->hostname ? s->hostname : "");
+  printf("--- %s ping statistics ---\n", s->hostname ? s->hostname : "");
 
-  printf("%d packets transmitted, %d received", s->ntransmitted, s->nreceived);
+  printf("%d packets transmitted, %d packets received", s->ntransmitted, s->nreceived);
 
   if (s->nrepeats)
     printf(", +%ld duplicates", s->nrepeats);
@@ -56,11 +62,11 @@ void tool_output_finish(const t_ftping_summary *s) {
     printf(", +%ld errors", s->nerrors);
 
   if (s->ntransmitted) {
-    double loss = ((double)(s->ntransmitted - s->nreceived) * 100.0) / s->ntransmitted;
-    printf(", %.1f%% packet loss", loss);
+    int loss = (int)(((double)(s->ntransmitted - s->nreceived) * 100.0) / s->ntransmitted);
+    printf(", %d%% packet loss", loss);
   }
 
-  printf(", time %dms\n", s->ntransmitted * s->interval_ms);
+  printf("\n");
 
   if (s->nreceived && s->timing) {
     long total = s->nreceived + s->nrepeats;
@@ -86,7 +92,29 @@ void tool_output_finish(const t_ftping_summary *s) {
     }
 
     printf(
-        "rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", s->tmin / 1000.0, avg_rtt / 1000.0,
+        "round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n", s->tmin / 1000.0, avg_rtt / 1000.0,
         s->tmax / 1000.0, std_dev / 1000.0);
   }
+}
+
+void tool_output_error(const t_ftping_error_event *ev, void *ctx) {
+  if (!ev)
+    return;
+  const t_ping_config *config = (const t_ping_config *)ctx;
+  if (!config || !config->opt_verbose)
+    return;
+
+  char ip_str[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &ev->from_addr, ip_str, sizeof(ip_str));
+
+  const char *desc = "ICMP message";
+  if (ev->icmp_type == ICMP_TIME_EXCEEDED)
+    desc = "Time exceeded";
+  else if (ev->icmp_type == ICMP_DEST_UNREACH)
+    desc = "Destination Host Unreachable";
+
+  if (ev->orig_seq_valid)
+    printf("From %s: icmp_seq=%u %s\n", ip_str, ev->orig_seq, desc);
+  else
+    printf("From %s: %s\n", ip_str, desc);
 }

@@ -367,8 +367,7 @@ TEST_F(PingSendOneMockTest, BuildIpHeaderIsInvoked) {
 
   EXPECT_EQ(g_mock_vsock_state.build_ipheader_calls, 1);
   EXPECT_EQ(g_mock_vsock_state.last_seq, 0u);
-  EXPECT_EQ(g_mock_vsock_state.last_datalen,
-            static_cast<size_t>(session.config.datalen));
+  EXPECT_EQ(g_mock_vsock_state.last_datalen, static_cast<size_t>(session.config.datalen));
 }
 
 /* F-2: count に達していたら build_ipheader は呼ばれない */

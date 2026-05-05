@@ -41,6 +41,8 @@ typedef struct ping_session {
   volatile int is_exiting; /* ping_stop() がセット */
   t_ftping_reply_cb reply_cb;
   void *reply_ctx;
+  t_ftping_error_cb error_cb;
+  void *error_ctx;
 } t_ping_session;
 
 typedef struct ping_receive {

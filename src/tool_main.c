@@ -24,8 +24,9 @@ int main(int argc, char **argv) {
   tool_setup_signals(session);
 
   ftping_set_reply_handler(session, tool_output_reply, &config);
+  ftping_set_error_handler(session, tool_output_error, &config);
 
-  tool_output_header(&config, ftping_get_target_addr(session), ftping_get_packet_size(session));
+  tool_output_header(&config, ftping_get_target_addr(session), ftping_get_ident(session));
 
   ftping_run(session);
 
