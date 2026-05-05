@@ -7,11 +7,8 @@ static void show_usage(void);
 
 int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "vh?AhDe:t:Q:c:S:s:l:w:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "h?AhDe:t:Q:c:S:s:l:w:v")) != EOF) {
     switch (ch) {
-    case 'v': // -v                 verbose output
-      config->opt_verbose = 1;
-      break;
     case 'A': // -A                 use adaptive ping
       config->opt_adaptive = 1;
       break;
@@ -46,6 +43,9 @@ int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
     case 'w': // -w <deadline>      reply wait <deadline> in seconds
       config->deadline_sec = parse_long(optarg, "invalid argument", 0, INT_MAX, error);
       break;
+    case 'v': // -v                 verbose output
+      config->opt_verbose = 1;
+      break;
     default:
       show_usage();
       return 2;
@@ -61,7 +61,6 @@ static void show_usage(void) {
       "\nUsage:\n  %s [options] <destination>\n\n"
       "Options:\n"
       "  <destination>      dns name or ip address\n"
-      "  -v                 verbose output\n"
       "  -A                 use adaptive ping\n"
       "  -c <count>         stop after <count> replies\n"
       "  -D                 print timestamps\n"
@@ -74,6 +73,7 @@ static void show_usage(void) {
       "  -s <size>          use <size> as number of data bytes to be sent\n"
       "  -S <size>          use <size> as SO_SNDBUF socket option value\n"
       "  -t <ttl>           define time to live\n"
+      "  -v                 verbose output\n"
       "  -w <deadline>      reply wait <deadline> in seconds\n"
       "\n"
       "For more details see https://github.com/GawinGowin/ft_ping.git\n"};

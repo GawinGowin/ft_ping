@@ -58,6 +58,8 @@ struct in_addr ftping_get_target_addr(const t_ping_session *session) {
   return session->net.whereto.sin_addr;
 }
 
+uint16_t ftping_get_ident(const t_ping_session *session) { return (session->net.ident); }
+
 void ftping_stop(t_ping_session *session) {
   if (session) {
     session->is_exiting = 1;

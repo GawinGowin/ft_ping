@@ -29,14 +29,41 @@ protected:
 TEST_F(HeaderTest, BasicFormat) {
   struct in_addr addr;
   inet_aton("127.0.0.1", &addr);
-  std::string out = capture([&]() { tool_output_header(&config, addr, 84); });
+  std::string out = capture([&]() { tool_output_header(&config, addr, 0); });
   EXPECT_EQ(out, "PING localhost (127.0.0.1): 56 data bytes\n");
 }
 
 TEST_F(HeaderTest, NullConfigDoesNotCrash) {
   struct in_addr addr{};
-  std::string out = capture([&]() { tool_output_header(nullptr, addr, 0); });
+  std::string out = capture([&]() { tool_output_header(nullptr, addr, 100); });
   EXPECT_EQ(out, "");
+}
+
+class HeaderTestVerbose : public ::testing::Test {
+protected:
+  t_ping_config config{};
+  void SetUp() override {
+    config.hostname = "localhost";
+    config.datalen = 56;
+    config.opt_verbose = 1;
+  }
+};
+
+TEST_F(HeaderTestVerbose, BasicFormat) {
+  struct in_addr addr;
+  inet_aton("127.0.0.1", &addr);
+  uint16_t ident = 0xabcd;
+  std::string out = capture([&]() { tool_output_header(&config, addr, ident); });
+  EXPECT_EQ(out, "PING localhost (127.0.0.1): 56 data bytes, id 0xabcd = 43981\n");
+}
+
+TEST_F(HeaderTestVerbose, NullHostname) {
+  struct in_addr addr;
+  inet_aton("8.8.8.8", &addr);
+  config.hostname = nullptr;
+  uint16_t ident = 100;
+  std::string out = capture([&]() { tool_output_header(&config, addr, ident); });
+  EXPECT_EQ(out, "PING  (8.8.8.8): 56 data bytes, id 0x64 = 100\n");
 }
 
 /* ─── tool_output_reply ──────────────────────────────── */

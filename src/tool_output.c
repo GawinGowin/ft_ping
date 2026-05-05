@@ -5,13 +5,17 @@
 #include <netinet/ip_icmp.h>
 #include <stdio.h>
 
-void tool_output_header(const t_ping_config *config, struct in_addr addr, size_t packet_size) {
+void tool_output_header(const t_ping_config *config, struct in_addr addr, uint16_t ident) {
   if (!config)
     return;
-  (void)packet_size;
   printf(
-      "PING %s (%s): %d data bytes\n", config->hostname ? config->hostname : "", inet_ntoa(addr),
+      "PING %s (%s): %d data bytes", config->hostname ? config->hostname : "", inet_ntoa(addr),
       config->datalen);
+  if (config->opt_verbose) {
+    printf(", id 0x%x = %d\n", (int)ident, (int)ident);
+  } else {
+    printf("\n");
+  }
 }
 
 void tool_output_reply(const t_ftping_reply *reply, void *ctx) {

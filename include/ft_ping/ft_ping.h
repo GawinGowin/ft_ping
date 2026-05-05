@@ -97,6 +97,7 @@ void ftping_set_error_handler(t_ping_session *session, t_ftping_error_cb cb, voi
 void ftping_run(t_ping_session *session);
 t_ftping_summary ftping_get_summary(const t_ping_session *session);
 size_t ftping_get_packet_size(const t_ping_session *session);
+uint16_t ftping_get_ident(const t_ping_session *session);
 struct in_addr ftping_get_target_addr(const t_ping_session *session);
 void ftping_stop(t_ping_session *session);
 void ftping_cleanup(t_ping_session *session);
