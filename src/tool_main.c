@@ -5,7 +5,7 @@
 #include "tool_signal.h"
 
 int main(int argc, char **argv) {
-  t_ping_config config;
+  t_ping_config config = {};
   ftping_config_init(&config);
 
   int err = 0;
