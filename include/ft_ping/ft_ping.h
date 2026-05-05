@@ -76,12 +76,24 @@ typedef struct ftping_summary {
 
 typedef void (*t_ftping_reply_cb)(const t_ftping_reply *reply, void *ctx);
 
+/* エラーパケット通知。-v 時に Time Exceeded / Dest Unreach を伝える。 */
+typedef struct ftping_error_event {
+  int icmp_type;
+  int icmp_code;
+  struct in_addr from_addr;
+  uint16_t orig_seq;
+  int orig_seq_valid;
+} t_ftping_error_event;
+
+typedef void (*t_ftping_error_cb)(const t_ftping_error_event *ev, void *ctx);
+
 typedef struct ping_session t_ping_session; /* opaque */
 
 /* ── 公開API ── */
 void ftping_config_init(t_ping_config *config);
 t_ping_session *ftping_init(const t_ping_config *config, const char *target);
 void ftping_set_reply_handler(t_ping_session *session, t_ftping_reply_cb cb, void *ctx);
+void ftping_set_error_handler(t_ping_session *session, t_ftping_error_cb cb, void *ctx);
 void ftping_run(t_ping_session *session);
 t_ftping_summary ftping_get_summary(const t_ping_session *session);
 size_t ftping_get_packet_size(const t_ping_session *session);
