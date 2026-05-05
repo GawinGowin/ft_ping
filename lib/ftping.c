@@ -24,6 +24,13 @@ void ftping_set_reply_handler(t_ping_session *session, t_ftping_reply_cb cb, voi
   session->reply_ctx = ctx;
 }
 
+void ftping_set_error_handler(t_ping_session *session, t_ftping_error_cb cb, void *ctx) {
+  if (!session)
+    return;
+  session->error_cb = cb;
+  session->error_ctx = ctx;
+}
+
 void ftping_run(t_ping_session *session) { ping_run(session); }
 
 t_ftping_summary ftping_get_summary(const t_ping_session *session) {
