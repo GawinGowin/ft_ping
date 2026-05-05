@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <limits.h>
+#include <netinet/ip_icmp.h>
 #include <stdio.h>
 
 void tool_output_header(const t_ping_config *config, struct in_addr addr, size_t packet_size) {
@@ -89,4 +90,26 @@ void tool_output_finish(const t_ftping_summary *s) {
         "rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", s->tmin / 1000.0, avg_rtt / 1000.0,
         s->tmax / 1000.0, std_dev / 1000.0);
   }
+}
+
+void tool_output_error(const t_ftping_error_event *ev, void *ctx) {
+  if (!ev)
+    return;
+  const t_ping_config *config = (const t_ping_config *)ctx;
+  if (!config || !config->opt_verbose)
+    return;
+
+  char ip_str[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &ev->from_addr, ip_str, sizeof(ip_str));
+
+  const char *desc = "ICMP message";
+  if (ev->icmp_type == ICMP_TIME_EXCEEDED)
+    desc = "Time exceeded";
+  else if (ev->icmp_type == ICMP_DEST_UNREACH)
+    desc = "Destination Host Unreachable";
+
+  if (ev->orig_seq_valid)
+    printf("From %s: icmp_seq=%u %s\n", ip_str, ev->orig_seq, desc);
+  else
+    printf("From %s: %s\n", ip_str, desc);
 }

@@ -16,4 +16,8 @@ void tool_output_reply(const t_ftping_reply *reply, void *ctx);
 /* 終了時の統計出力 */
 void tool_output_finish(const t_ftping_summary *summary);
 
+/* -v 時のエラーパケット表示。ftping_set_error_handler に登録するコールバック。
+ * ctx は const t_ping_config * を渡す（opt_verbose 判定のため）。 */
+void tool_output_error(const t_ftping_error_event *ev, void *ctx);
+
 #endif /* TOOL_OUTPUT_H */
