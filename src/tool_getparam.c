@@ -7,8 +7,11 @@ static void show_usage(void);
 
 int tool_parse_args(int *argc, char ***argv, t_ping_config *config) {
   int ch;
-  while ((ch = getopt(*argc, *argv, "h?AhDe:t:Q:c:S:s:l:w:")) != EOF) {
+  while ((ch = getopt(*argc, *argv, "vh?AhDe:t:Q:c:S:s:l:w:")) != EOF) {
     switch (ch) {
+    case 'v': // -v                 verbose output
+      config->opt_verbose = 1;
+      break;
     case 'A': // -A                 use adaptive ping
       config->opt_adaptive = 1;
       break;
@@ -58,6 +61,7 @@ static void show_usage(void) {
       "\nUsage:\n  %s [options] <destination>\n\n"
       "Options:\n"
       "  <destination>      dns name or ip address\n"
+      "  -v                 verbose output\n"
       "  -A                 use adaptive ping\n"
       "  -c <count>         stop after <count> replies\n"
       "  -D                 print timestamps\n"
