@@ -2,6 +2,8 @@
 
 #include <limits.h>
 #include <linux/errqueue.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 
 #define MIN_INTERVAL_MS 10
 #define MIN_USER_INTERVAL_MS 2 /* 非root の最小インターバル (ms) — iputils ping.h:67 準拠 */
@@ -353,6 +355,32 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
         };
         session->reply_cb(&ev, session->reply_ctx);
       }
+    } else if (icmp && (icmp->type == ICMP_TIME_EXCEEDED || icmp->type == ICMP_DEST_UNREACH)) {
+      if (session->error_cb) {
+        uint16_t orig_seq = 0;
+        int orig_seq_valid = 0;
+        const size_t inner_off = sizeof(struct icmphdr) + sizeof(struct iphdr);
+        if ((size_t)icmp_len >= inner_off + sizeof(struct icmphdr)) {
+          const struct icmphdr *inner = (const struct icmphdr *)((const char *)icmp + inner_off);
+          uint16_t inner_id = ntohs(inner->un.echo.id);
+          if (session->net.socket_state.socktype == SOCK_DGRAM || inner_id == session->net.ident) {
+            orig_seq = ntohs(inner->un.echo.sequence);
+            orig_seq_valid = 1;
+          } else {
+            *received->polling = MSG_DONTWAIT;
+            continue;
+          }
+        }
+        t_ftping_error_event ev = {
+            .icmp_type = icmp->type,
+            .icmp_code = icmp->code,
+            .from_addr = from ? from->sin_addr : (struct in_addr){0},
+            .orig_seq = orig_seq,
+            .orig_seq_valid = orig_seq_valid,
+        };
+        session->error_cb(&ev, session->error_ctx);
+      }
+      /* -v 無しでも継続。プログラムは落とさない。 */
     }
 
     /* 2回目以降は non-blocking で連続吸い出し。
