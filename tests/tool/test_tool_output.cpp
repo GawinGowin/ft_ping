@@ -189,7 +189,7 @@ TEST_F(FinishTest, RttLineWhenTimingAndReceived) {
   s.tsum = 10000;
   s.tsum2 = 10000.0 * 10000.0;
   std::string out = capture([&]() { tool_output_finish(&s); });
-  EXPECT_NE(out.find("rtt min/avg/max/mdev = 10.000/10.000/10.000/0.000 ms"), std::string::npos);
+  EXPECT_NE(out.find("round-trip min/avg/max/stddev = 10.000/10.000/10.000/0.000 ms"), std::string::npos);
 }
 
 TEST_F(FinishTest, RttLineAbsentWhenTimingOff) {

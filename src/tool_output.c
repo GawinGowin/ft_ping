@@ -50,7 +50,7 @@ void tool_output_finish(const t_ftping_summary *s) {
   if (!s)
     return;
 
-  printf("\n--- %s ping statistics ---\n", s->hostname ? s->hostname : "");
+  printf("--- %s ping statistics ---\n", s->hostname ? s->hostname : "");
 
   printf("%d packets transmitted, %d packets received", s->ntransmitted, s->nreceived);
 
@@ -92,7 +92,7 @@ void tool_output_finish(const t_ftping_summary *s) {
     }
 
     printf(
-        "rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", s->tmin / 1000.0, avg_rtt / 1000.0,
+        "round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n", s->tmin / 1000.0, avg_rtt / 1000.0,
         s->tmax / 1000.0, std_dev / 1000.0);
   }
 }
