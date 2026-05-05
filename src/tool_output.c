@@ -48,7 +48,7 @@ void tool_output_finish(const t_ftping_summary *s) {
 
   printf("\n--- %s ping statistics ---\n", s->hostname ? s->hostname : "");
 
-  printf("%d packets transmitted, %d received", s->ntransmitted, s->nreceived);
+  printf("%d packets transmitted, %d packets received", s->ntransmitted, s->nreceived);
 
   if (s->nrepeats)
     printf(", +%ld duplicates", s->nrepeats);
@@ -58,11 +58,11 @@ void tool_output_finish(const t_ftping_summary *s) {
     printf(", +%ld errors", s->nerrors);
 
   if (s->ntransmitted) {
-    double loss = ((double)(s->ntransmitted - s->nreceived) * 100.0) / s->ntransmitted;
-    printf(", %.1f%% packet loss", loss);
+    int loss = (int)(((double)(s->ntransmitted - s->nreceived) * 100.0) / s->ntransmitted);
+    printf(", %d%% packet loss", loss);
   }
 
-  printf(", time %dms\n", s->ntransmitted * s->interval_ms);
+  printf("\n");
 
   if (s->nreceived && s->timing) {
     long total = s->nreceived + s->nrepeats;
