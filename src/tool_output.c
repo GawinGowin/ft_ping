@@ -8,9 +8,10 @@
 void tool_output_header(const t_ping_config *config, struct in_addr addr, size_t packet_size) {
   if (!config)
     return;
+  (void)packet_size;
   printf(
-      "PING %s (%s) %d(%zu) bytes of data.\n", config->hostname ? config->hostname : "",
-      inet_ntoa(addr), config->datalen, packet_size);
+      "PING %s (%s): %d data bytes\n", config->hostname ? config->hostname : "", inet_ntoa(addr),
+      config->datalen);
 }
 
 void tool_output_reply(const t_ftping_reply *reply, void *ctx) {
