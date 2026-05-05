@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <gtest/gtest.h>
+#include <netinet/ip_icmp.h>
 #include <string>
 
 extern "C" {
@@ -29,7 +30,7 @@ TEST_F(HeaderTest, BasicFormat) {
   struct in_addr addr;
   inet_aton("127.0.0.1", &addr);
   std::string out = capture([&]() { tool_output_header(&config, addr, 84); });
-  EXPECT_EQ(out, "PING localhost (127.0.0.1) 56(84) bytes of data.\n");
+  EXPECT_EQ(out, "PING localhost (127.0.0.1): 56 data bytes\n");
 }
 
 TEST_F(HeaderTest, NullConfigDoesNotCrash) {
@@ -115,16 +116,16 @@ TEST_F(FinishTest, BasicCounts) {
   s.ntransmitted = 2;
   s.nreceived = 2;
   std::string out = capture([&]() { tool_output_finish(&s); });
-  EXPECT_NE(out.find("2 packets transmitted, 2 received"), std::string::npos);
-  EXPECT_NE(out.find("0.0% packet loss"), std::string::npos);
-  EXPECT_NE(out.find("time 2000ms"), std::string::npos);
+  EXPECT_NE(out.find("2 packets transmitted, 2 packets received"), std::string::npos);
+  EXPECT_NE(out.find("0% packet loss"), std::string::npos);
+  EXPECT_EQ(out.find("time "), std::string::npos);
 }
 
 TEST_F(FinishTest, FiftyPercentLoss) {
   s.ntransmitted = 4;
   s.nreceived = 2;
   std::string out = capture([&]() { tool_output_finish(&s); });
-  EXPECT_NE(out.find("50.0% packet loss"), std::string::npos);
+  EXPECT_NE(out.find("50% packet loss"), std::string::npos);
 }
 
 TEST_F(FinishTest, DuplicatesShown) {
@@ -182,5 +183,50 @@ TEST_F(FinishTest, RttLineAbsentWhenNoReceived) {
 
 TEST_F(FinishTest, NullSummaryDoesNotCrash) {
   std::string out = capture([&]() { tool_output_finish(nullptr); });
+  EXPECT_EQ(out, "");
+}
+
+/* ─── tool_output_error ──────────────────────────────── */
+
+class ErrorTest : public ::testing::Test {
+protected:
+  t_ping_config config{};
+  t_ftping_error_event ev{};
+  void SetUp() override {
+    config.opt_verbose = 1;
+    inet_aton("10.0.0.1", &ev.from_addr);
+    ev.orig_seq = 3;
+    ev.orig_seq_valid = 1;
+  }
+};
+
+TEST_F(ErrorTest, TimeExceededWithSeq) {
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out, "From 10.0.0.1: icmp_seq=3 Time exceeded\n");
+}
+
+TEST_F(ErrorTest, DestUnreachWithoutSeq) {
+  ev.icmp_type = ICMP_DEST_UNREACH;
+  ev.orig_seq_valid = 0;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out, "From 10.0.0.1: Destination Host Unreachable\n");
+}
+
+TEST_F(ErrorTest, SuppressedWhenVerboseOff) {
+  config.opt_verbose = 0;
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out, "");
+}
+
+TEST_F(ErrorTest, NullEvDoesNotCrash) {
+  std::string out = capture([&]() { tool_output_error(nullptr, &config); });
+  EXPECT_EQ(out, "");
+}
+
+TEST_F(ErrorTest, NullCtxSuppressesOutput) {
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  std::string out = capture([&]() { tool_output_error(&ev, nullptr); });
   EXPECT_EQ(out, "");
 }
