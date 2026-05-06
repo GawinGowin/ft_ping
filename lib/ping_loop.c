@@ -359,25 +359,70 @@ int ping_receive_replies(t_ping_session *session, t_ping_receive *received) {
       if (session->error_cb) {
         uint16_t orig_seq = 0;
         int orig_seq_valid = 0;
-        const size_t inner_off = sizeof(struct icmphdr) + sizeof(struct iphdr);
-        if ((size_t)icmp_len >= inner_off + sizeof(struct icmphdr)) {
-          const struct icmphdr *inner = (const struct icmphdr *)((const char *)icmp + inner_off);
-          uint16_t inner_id = ntohs(inner->un.echo.id);
-          if (session->net.socket_state.socktype == SOCK_DGRAM || inner_id == session->net.ident) {
-            orig_seq = ntohs(inner->un.echo.sequence);
-            orig_seq_valid = 1;
-          } else {
-            *received->polling = MSG_DONTWAIT;
-            continue;
+
+        /* ICMP エラーペイロード: [outer ICMP hdr 8B][inner IP hdr][inner ICMP hdr] */
+        const char *icmp_payload = (const char *)icmp + sizeof(struct icmphdr);
+        int icmp_payload_len = icmp_len - (int)sizeof(struct icmphdr);
+
+        const struct iphdr *inner_ip = NULL;
+        int inner_ip_hdr_len = 0;
+        const struct icmphdr *inner_icmp = NULL;
+
+        if (icmp_payload_len >= (int)sizeof(struct iphdr)) {
+          inner_ip = (const struct iphdr *)icmp_payload;
+          inner_ip_hdr_len = (int)(inner_ip->ihl) * 4;
+
+          if (inner_ip_hdr_len >= (int)sizeof(struct iphdr) &&
+              icmp_payload_len >= inner_ip_hdr_len + (int)sizeof(struct icmphdr)) {
+            inner_icmp = (const struct icmphdr *)(icmp_payload + inner_ip_hdr_len);
+            uint16_t inner_id = ntohs(inner_icmp->un.echo.id);
+            if (session->net.socket_state.socktype == SOCK_DGRAM ||
+                inner_id == session->net.ident) {
+              orig_seq = ntohs(inner_icmp->un.echo.sequence);
+              orig_seq_valid = 1;
+            } else {
+              *received->polling = MSG_DONTWAIT;
+              continue;
+            }
           }
         }
+
         t_ftping_error_event ev = {
             .icmp_type = icmp->type,
             .icmp_code = icmp->code,
+            .bytes = (int)ret,
             .from_addr = from ? from->sin_addr : (struct in_addr){0},
             .orig_seq = orig_seq,
             .orig_seq_valid = orig_seq_valid,
+            .inner_ip_hdr_len = 0,
+            .inner_icmp_valid = 0,
         };
+
+        /* 逆引きホスト名を解決 */
+        {
+          struct sockaddr_in sa = {.sin_family = AF_INET, .sin_addr = ev.from_addr};
+          if (getnameinfo(
+                  (struct sockaddr *)&sa, sizeof(sa), ev.from_hostname, sizeof(ev.from_hostname),
+                  NULL, 0, 0) != 0) {
+            /* 解決失敗時は数値表現 */
+            inet_ntop(AF_INET, &ev.from_addr, ev.from_hostname, sizeof(ev.from_hostname));
+          }
+        }
+
+        if (inner_ip && inner_ip_hdr_len > 0 && inner_ip_hdr_len <= 60) {
+          memcpy(ev.inner_ip_hdr, inner_ip, (size_t)inner_ip_hdr_len);
+          ev.inner_ip_hdr_len = inner_ip_hdr_len;
+        }
+
+        if (inner_icmp) {
+          ev.inner_icmp_type = inner_icmp->type;
+          ev.inner_icmp_code = inner_icmp->code;
+          ev.inner_icmp_size = icmp_payload_len - inner_ip_hdr_len;
+          ev.inner_icmp_id = ntohs(inner_icmp->un.echo.id);
+          ev.inner_icmp_seq = ntohs(inner_icmp->un.echo.sequence);
+          ev.inner_icmp_valid = 1;
+        }
+
         session->error_cb(&ev, session->error_ctx);
       }
       /* -v 無しでも継続。プログラムは落とさない。 */
