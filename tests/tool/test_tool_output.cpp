@@ -34,7 +34,7 @@ TEST_F(HeaderTest, BasicFormat) {
 }
 
 TEST_F(HeaderTest, NullConfigDoesNotCrash) {
-  struct in_addr addr{};
+  struct in_addr addr {};
   std::string out = capture([&]() { tool_output_header(nullptr, addr, 100); });
   EXPECT_EQ(out, "");
 }
@@ -189,7 +189,8 @@ TEST_F(FinishTest, RttLineWhenTimingAndReceived) {
   s.tsum = 10000;
   s.tsum2 = 10000.0 * 10000.0;
   std::string out = capture([&]() { tool_output_finish(&s); });
-  EXPECT_NE(out.find("round-trip min/avg/max/stddev = 10.000/10.000/10.000/0.000 ms"), std::string::npos);
+  EXPECT_NE(
+      out.find("round-trip min/avg/max/stddev = 10.000/10.000/10.000/0.000 ms"), std::string::npos);
 }
 
 TEST_F(FinishTest, RttLineAbsentWhenTimingOff) {
@@ -222,22 +223,32 @@ protected:
   void SetUp() override {
     config.opt_verbose = 1;
     inet_aton("10.0.0.1", &ev.from_addr);
+    ev.bytes = 28;
     ev.orig_seq = 3;
     ev.orig_seq_valid = 1;
   }
 };
 
-TEST_F(ErrorTest, TimeExceededWithSeq) {
+TEST_F(ErrorTest, TimeExceededIPOnly) {
+  /* from_hostname が空のとき: IP アドレスのみ表示 */
   ev.icmp_type = ICMP_TIME_EXCEEDED;
   std::string out = capture([&]() { tool_output_error(&ev, &config); });
-  EXPECT_EQ(out, "From 10.0.0.1: icmp_seq=3 Time exceeded\n");
+  EXPECT_EQ(out, "28 bytes from 10.0.0.1: Time to live exceeded\n");
 }
 
-TEST_F(ErrorTest, DestUnreachWithoutSeq) {
+TEST_F(ErrorTest, TimeExceededWithHostname) {
+  /* from_hostname が IP と異なるとき: hostname (ip) 形式 */
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  strncpy(ev.from_hostname, "router.local", sizeof(ev.from_hostname) - 1);
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out, "28 bytes from router.local (10.0.0.1): Time to live exceeded\n");
+}
+
+TEST_F(ErrorTest, DestUnreach) {
   ev.icmp_type = ICMP_DEST_UNREACH;
   ev.orig_seq_valid = 0;
   std::string out = capture([&]() { tool_output_error(&ev, &config); });
-  EXPECT_EQ(out, "From 10.0.0.1: Destination Host Unreachable\n");
+  EXPECT_EQ(out, "28 bytes from 10.0.0.1: Destination Host Unreachable\n");
 }
 
 TEST_F(ErrorTest, SuppressedWhenVerboseOff) {
@@ -256,4 +267,60 @@ TEST_F(ErrorTest, NullCtxSuppressesOutput) {
   ev.icmp_type = ICMP_TIME_EXCEEDED;
   std::string out = capture([&]() { tool_output_error(&ev, nullptr); });
   EXPECT_EQ(out, "");
+}
+
+TEST_F(ErrorTest, IPHdrDumpPresent) {
+  /* inner_ip_hdr_len >= sizeof(struct iphdr) のとき IP Hdr Dump を出力 */
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+
+  struct iphdr ip = {};
+  ip.version = 4;
+  ip.ihl = 5;
+  ip.tos = 0;
+  ip.tot_len = htons(84);
+  ip.id = htons(0x111d);
+  ip.frag_off = htons(0x4000); /* DF flag */
+  ip.ttl = 4;
+  ip.protocol = 1;
+  ip.check = htons(0x2eb8);
+  inet_pton(AF_INET, "10.0.2.15", &ip.saddr);
+  inet_pton(AF_INET, "74.125.224.72", &ip.daddr);
+
+  memcpy(ev.inner_ip_hdr, &ip, sizeof(ip));
+  ev.inner_ip_hdr_len = 20;
+
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_NE(out.find("IP Hdr Dump:"), std::string::npos);
+  EXPECT_NE(out.find("Vr HL TOS  Len   ID Flg  off TTL Pro  cks"), std::string::npos);
+  EXPECT_NE(out.find(" 4  5  00 0054 111d   2 0000  04  01 2eb8"), std::string::npos);
+  EXPECT_NE(out.find("10.0.2.15"), std::string::npos);
+  EXPECT_NE(out.find("74.125.224.72"), std::string::npos);
+}
+
+TEST_F(ErrorTest, IPHdrDumpAbsentWhenNoInnerHdr) {
+  /* inner_ip_hdr_len == 0 のとき IP Hdr Dump を出力しない */
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  ev.inner_ip_hdr_len = 0;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out.find("IP Hdr Dump:"), std::string::npos);
+}
+
+TEST_F(ErrorTest, ICMPInfoLine) {
+  /* inner_icmp_valid のとき ICMP: type/code/size/id/seq 行を出力 */
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  ev.inner_icmp_valid = 1;
+  ev.inner_icmp_type = 8;
+  ev.inner_icmp_code = 0;
+  ev.inner_icmp_size = 64;
+  ev.inner_icmp_id = 0xd8e6;
+  ev.inner_icmp_seq = 0;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_NE(out.find("ICMP: type 8, code 0, size 64, id 0xd8e6, seq 0x0000"), std::string::npos);
+}
+
+TEST_F(ErrorTest, ICMPInfoLineAbsentWhenNotValid) {
+  ev.icmp_type = ICMP_TIME_EXCEEDED;
+  ev.inner_icmp_valid = 0;
+  std::string out = capture([&]() { tool_output_error(&ev, &config); });
+  EXPECT_EQ(out.find("ICMP:"), std::string::npos);
 }
