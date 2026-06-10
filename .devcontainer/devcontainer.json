@@ -8,13 +8,8 @@
     "target": "dev"
   },
   "runArgs": [
-    "-it",
-    "--rm",
-    "--name",
-    "ft_ping",
-    "--privileged",
-    "--network",
-    "host"
+    "-it", "--rm", "--name", "ft_ping",
+    "--privileged", "--network","host"
   ],
   "workspaceFolder": "/ft_ping",
   "workspaceMount": "source=${localWorkspaceFolder},target=/ft_ping,type=bind,consistency=delegated",
