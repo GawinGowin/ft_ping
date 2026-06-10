@@ -80,9 +80,21 @@ typedef void (*t_ftping_reply_cb)(const t_ftping_reply *reply, void *ctx);
 typedef struct ftping_error_event {
   int icmp_type;
   int icmp_code;
+  int bytes; /* 受信バイト数 (recvmsg の戻り値) */
   struct in_addr from_addr;
+  char from_hostname[256]; /* 逆引きホスト名。空なら from_addr の数値表現を使用 */
   uint16_t orig_seq;
   int orig_seq_valid;
+  /* 内側 IP ヘッダの生バイト（IP Hdr Dump 用）*/
+  uint8_t inner_ip_hdr[60]; /* IP ヘッダ最大 60B */
+  int inner_ip_hdr_len;     /* 実際の内側 IP ヘッダ長 (bytes)。0 なら未取得 */
+  /* 元 ICMP ヘッダ（ICMP: type/code/id/seq 表示用）*/
+  int inner_icmp_type;
+  int inner_icmp_code;
+  int inner_icmp_size; /* 内側 ICMP ペイロード全体サイズ */
+  uint16_t inner_icmp_id;
+  uint16_t inner_icmp_seq;
+  int inner_icmp_valid; /* inner_icmp_* が有効なら 1 */
 } t_ftping_error_event;
 
 typedef void (*t_ftping_error_cb)(const t_ftping_error_event *ev, void *ctx);
